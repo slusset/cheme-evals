@@ -1,0 +1,56 @@
+{
+  "id": "scibench-thermo-8.25",
+  "version": "0.1.0",
+  "_status": "DRAFT \u2014 requires human review of inputs, tolerances, and checkpoints",
+  "tags": [
+    "scibench",
+    "thermo"
+  ],
+  "source": {
+    "type": "textbook",
+    "reference": "SciBench dataset, source: thermo, problem 8.25",
+    "verified_by": "scibench_dataset"
+  },
+  "problem": {
+    "statement": "For water, \u0394 H_\\text {vaporization } is 40.656 kJ mol^-1, and the normal boiling point is 373.12 K. Calculate the boiling point for water on the top of Mt. Everest (elevation 8848 m ), where the barometric pressure is 253 Torr.",
+    "task": "Calculate the answer and express in K.",
+    "difficulty": "intermediate",
+    "topics": [
+      "thermo"
+    ]
+  },
+  "inputs": {
+    "_TODO": {
+      "value": "PARSE_FROM_PROBLEM_TEXT",
+      "unit": "TODO",
+      "description": "Extract structured inputs from the problem statement above"
+    }
+  },
+  "expected_outputs": {
+    "answer": {
+      "value": 344.0,
+      "unit": "K",
+      "description": "Expected answer from SciBench (raw unit: $\\mathrm{~K}$)"
+    }
+  },
+  "acceptance_criteria": {
+    "tolerances": {
+      "answer": {
+        "type": "relative_percent",
+        "value": 5.0,
+        "_comment": "TODO \u2014 set appropriate tolerance based on problem type"
+      }
+    },
+    "must_include": [],
+    "must_not_include": []
+  },
+  "domain_context": {
+    "recommended_tools": [],
+    "key_assumptions": [],
+    "common_mistakes": []
+  },
+  "agent_evaluation": {
+    "reasoning_checkpoints": [],
+    "skill_document_expected": false
+  }
+}

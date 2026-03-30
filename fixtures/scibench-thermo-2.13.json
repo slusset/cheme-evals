@@ -1,0 +1,56 @@
+{
+  "id": "scibench-thermo-2.13",
+  "version": "0.1.0",
+  "_status": "DRAFT \u2014 requires human review of inputs, tolerances, and checkpoints",
+  "tags": [
+    "scibench",
+    "thermo"
+  ],
+  "source": {
+    "type": "textbook",
+    "reference": "SciBench dataset, source: thermo, problem 2.13",
+    "verified_by": "scibench_dataset"
+  },
+  "problem": {
+    "statement": "A system consisting of 82.5 g of liquid water at 300 . K is heated using an immersion heater at a constant pressure of 1.00 bar. If a current of 1.75 A passes through the 25.0 ohm resistor for 100 .s, what is the final temperature of the water?",
+    "task": "Calculate the answer and express in K.",
+    "difficulty": "intermediate",
+    "topics": [
+      "thermo"
+    ]
+  },
+  "inputs": {
+    "_TODO": {
+      "value": "PARSE_FROM_PROBLEM_TEXT",
+      "unit": "TODO",
+      "description": "Extract structured inputs from the problem statement above"
+    }
+  },
+  "expected_outputs": {
+    "answer": {
+      "value": 322.0,
+      "unit": "K",
+      "description": "Expected answer from SciBench (raw unit: $\\mathrm{~K}$)"
+    }
+  },
+  "acceptance_criteria": {
+    "tolerances": {
+      "answer": {
+        "type": "relative_percent",
+        "value": 5.0,
+        "_comment": "TODO \u2014 set appropriate tolerance based on problem type"
+      }
+    },
+    "must_include": [],
+    "must_not_include": []
+  },
+  "domain_context": {
+    "recommended_tools": [],
+    "key_assumptions": [],
+    "common_mistakes": []
+  },
+  "agent_evaluation": {
+    "reasoning_checkpoints": [],
+    "skill_document_expected": false
+  }
+}

@@ -1,0 +1,167 @@
+{
+  "id": "scibench-thermo-9.8",
+  "version": "1.0.0",
+  "tags": ["vle", "raoults-law", "ideal-solution", "binary-mixture", "introductory", "scibench"],
+  "source": {
+    "type": "textbook",
+    "reference": "SciBench dataset, source: Engel & Reid 'Thermodynamics, Statistical Thermodynamics, & Kinetics', problem 9.8. Verified by manual Raoult's law calculation: P_total = x_benzene * P_benzene_sat + x_hexane * P_hexane_sat = 0.28 * 120 + 0.72 * 189 = 33.6 + 136.08 = 169.68 ≈ 170 Torr.",
+    "verified_by": "manual_calculation"
+  },
+
+  "problem": {
+    "statement": "At 303 K, the vapor pressure of pure benzene is 120 Torr and that of pure hexane is 189 Torr. Calculate the total vapor pressure of a solution in which the mole fraction of benzene is 0.28, assuming ideal solution behavior.",
+    "task": "Calculate: (1) partial pressure of benzene, (2) partial pressure of hexane, (3) total vapor pressure of the solution, (4) mole fraction of benzene in the vapor phase.",
+    "difficulty": "introductory",
+    "topics": [
+      "vapor-liquid equilibrium",
+      "Raoult's law",
+      "ideal solution",
+      "partial pressure",
+      "binary mixture"
+    ]
+  },
+
+  "inputs": {
+    "temperature": {
+      "value": 303,
+      "unit": "K",
+      "description": "System temperature"
+    },
+    "vapor_pressure_benzene": {
+      "value": 120,
+      "unit": "Torr",
+      "description": "Vapor pressure of pure benzene at 303 K"
+    },
+    "vapor_pressure_hexane": {
+      "value": 189,
+      "unit": "Torr",
+      "description": "Vapor pressure of pure hexane at 303 K"
+    },
+    "mole_fraction_benzene": {
+      "value": 0.28,
+      "unit": "mol_fraction",
+      "description": "Mole fraction of benzene in the liquid solution"
+    },
+    "mole_fraction_hexane": {
+      "value": 0.72,
+      "unit": "mol_fraction",
+      "description": "Mole fraction of hexane in the liquid solution"
+    }
+  },
+
+  "expected_outputs": {
+    "partial_pressure_benzene": {
+      "value": 33.6,
+      "unit": "Torr",
+      "description": "Partial pressure of benzene = x_benzene * P_benzene_sat"
+    },
+    "partial_pressure_hexane": {
+      "value": 136.08,
+      "unit": "Torr",
+      "description": "Partial pressure of hexane = x_hexane * P_hexane_sat"
+    },
+    "total_vapor_pressure": {
+      "value": 169.68,
+      "unit": "Torr",
+      "description": "Total vapor pressure = P_benzene + P_hexane"
+    },
+    "vapor_mole_fraction_benzene": {
+      "value": 0.198,
+      "unit": "mol_fraction",
+      "description": "Mole fraction of benzene in vapor = P_benzene / P_total"
+    }
+  },
+
+  "acceptance_criteria": {
+    "tolerances": {
+      "partial_pressure_benzene": {
+        "type": "absolute",
+        "value": 0.5,
+        "_comment": "Simple multiplication, tight tolerance"
+      },
+      "partial_pressure_hexane": {
+        "type": "absolute",
+        "value": 0.5,
+        "_comment": "Simple multiplication, tight tolerance"
+      },
+      "total_vapor_pressure": {
+        "type": "absolute",
+        "value": 1.0,
+        "_comment": "Sum of two partials, slightly wider tolerance"
+      },
+      "vapor_mole_fraction_benzene": {
+        "type": "absolute",
+        "value": 0.005,
+        "_comment": "Derived quantity, allow small rounding"
+      }
+    },
+    "must_include": [
+      "Apply Raoult's law to calculate partial pressures",
+      "Sum partial pressures for total vapor pressure",
+      "State or use the ideal solution assumption"
+    ],
+    "must_not_include": [
+      "Use activity coefficients for an ideal solution",
+      "Confuse liquid mole fraction with vapor mole fraction"
+    ]
+  },
+
+  "domain_context": {
+    "recommended_tools": [
+      "manual_Raoult_law_calculation"
+    ],
+    "recommended_thermo_model": "Raoult's law (appropriate for ideal solutions — benzene and hexane are both nonpolar hydrocarbons)",
+    "key_assumptions": [
+      "Ideal solution behavior (both components are nonpolar hydrocarbons of similar size)",
+      "Ideal vapor phase (low total pressure)",
+      "Isothermal system at 303 K"
+    ],
+    "common_mistakes": [
+      "Forgetting to calculate the hexane mole fraction as (1 - x_benzene)",
+      "Reporting only total pressure without showing partial pressures",
+      "Confusing liquid composition (x) with vapor composition (y)",
+      "Using the wrong mole fraction for each component's partial pressure"
+    ]
+  },
+
+  "agent_evaluation": {
+    "reasoning_checkpoints": [
+      {
+        "checkpoint": "Identifies this as an ideal solution problem where Raoult's law applies directly",
+        "weight": 0.20
+      },
+      {
+        "checkpoint": "Calculates both partial pressures using P_i = x_i * P_i_sat",
+        "weight": 0.25
+      },
+      {
+        "checkpoint": "Sums partial pressures to get total vapor pressure",
+        "weight": 0.20
+      },
+      {
+        "checkpoint": "Calculates vapor phase composition using y_i = P_i / P_total",
+        "weight": 0.20
+      },
+      {
+        "checkpoint": "States the ideal solution assumption and why it is appropriate",
+        "weight": 0.15
+      }
+    ],
+    "skill_document_expected": true
+  },
+
+  "physical_constraints": {
+    "composition_sum_liquid": {
+      "check": "x_benzene + x_hexane == 1.0",
+      "tolerance": 0.001
+    },
+    "partial_pressure_sum": {
+      "check": "P_benzene + P_hexane == P_total",
+      "tolerance": 0.1
+    },
+    "vapor_fraction_bounds": {
+      "check": "0 <= y_benzene <= 1",
+      "applies_to": ["vapor_mole_fraction_benzene"]
+    }
+  }
+}

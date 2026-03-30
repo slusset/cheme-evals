@@ -1,0 +1,7 @@
+[project]
+name = "cheme-evals"
+version = "0.1.0"
+description = "ChemE domain eval harness for learning eval skills and best practices"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []

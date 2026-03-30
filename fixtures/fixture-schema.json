@@ -1,0 +1,154 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ChemE Agent Eval Fixture",
+  "description": "A reproducible test case for evaluating AI agents on chemical engineering problems",
+  "type": "object",
+  "required": ["id", "version", "problem", "inputs", "expected_outputs", "acceptance_criteria", "domain_context"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier, e.g. 'flash-distillation-01'"
+    },
+    "version": {
+      "type": "string",
+      "description": "Fixture version - increment when the problem or expected answers change"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Categorization tags, e.g. ['separation', 'vle', 'introductory']"
+    },
+    "source": {
+      "type": "object",
+      "description": "Where the problem came from - textbook, manual calculation, DWSIM validation",
+      "properties": {
+        "type": { "type": "string", "enum": ["textbook", "manual_calculation", "dwsim_validated", "industry_benchmark"] },
+        "reference": { "type": "string" },
+        "verified_by": { "type": "string" }
+      }
+    },
+    "problem": {
+      "type": "object",
+      "required": ["statement", "task"],
+      "properties": {
+        "statement": {
+          "type": "string",
+          "description": "Natural language problem description, as you'd read it in a textbook"
+        },
+        "task": {
+          "type": "string",
+          "description": "What the agent must produce - the specific deliverable"
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["introductory", "intermediate", "advanced", "expert"],
+          "description": "Approximate difficulty level"
+        },
+        "topics": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "ChemE topics exercised, e.g. ['vapor-liquid equilibrium', 'Raoult law', 'flash calculation']"
+        }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "description": "All known values the agent receives. Each value has amount, unit, and optional description.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["value", "unit"],
+        "properties": {
+          "value": { "description": "Numeric value or array of values" },
+          "unit": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "expected_outputs": {
+      "type": "object",
+      "description": "The correct answers. Same structure as inputs.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["value", "unit"],
+        "properties": {
+          "value": { "description": "Numeric value or array of values" },
+          "unit": { "type": "string" },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "acceptance_criteria": {
+      "type": "object",
+      "description": "How close the agent's answer must be to pass",
+      "properties": {
+        "tolerances": {
+          "type": "object",
+          "description": "Per-output tolerance, keyed by output name",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "enum": ["absolute", "relative_percent"] },
+              "value": { "type": "number" }
+            }
+          }
+        },
+        "must_include": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Qualitative checks - things the agent must mention or do, e.g. 'select appropriate thermo model'"
+        },
+        "must_not_include": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Red flags that indicate a bad answer, e.g. 'assume ideal gas at high pressure'"
+        }
+      }
+    },
+    "domain_context": {
+      "type": "object",
+      "description": "Information about the domain tools and knowledge required",
+      "properties": {
+        "recommended_tools": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tools an expert would use, e.g. ['DWSIM', 'Raoult_law_manual_calc']"
+        },
+        "recommended_thermo_model": {
+          "type": "string",
+          "description": "The appropriate thermodynamic model for this problem"
+        },
+        "key_assumptions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Assumptions a competent engineer would state"
+        },
+        "common_mistakes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Errors students commonly make on this type of problem"
+        }
+      }
+    },
+    "agent_evaluation": {
+      "type": "object",
+      "description": "Meta-evaluation: not just was the answer right, but did the agent reason well?",
+      "properties": {
+        "reasoning_checkpoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "checkpoint": { "type": "string" },
+              "weight": { "type": "number", "description": "How important is this step, 0-1" }
+            }
+          },
+          "description": "Key reasoning steps the agent should demonstrate"
+        },
+        "skill_document_expected": {
+          "type": "boolean",
+          "description": "Should the agent produce a skill document after solving this?"
+        }
+      }
+    }
+  }
+}

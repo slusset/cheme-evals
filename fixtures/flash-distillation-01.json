@@ -1,0 +1,175 @@
+{
+  "id": "flash-distillation-01",
+  "version": "1.0.0",
+  "tags": ["separation", "vle", "flash", "binary-mixture", "introductory"],
+  "source": {
+    "type": "textbook",
+    "reference": "Standard VLE flash calculation - benzene/toluene binary system at 1 atm. Commonly found in Smith/Van Ness/Abbott 'Introduction to Chemical Engineering Thermodynamics' and Seader/Henley 'Separation Process Principles'. Values verified via Raoult's law with Antoine equation.",
+    "verified_by": "manual_calculation"
+  },
+
+  "problem": {
+    "statement": "An equimolar feed of benzene and toluene (50 mol% each) at 100 kmol/h is fed to a flash drum operating at 1 atm (101.325 kPa). The feed is 25% vaporized (vapor fraction = 0.25). Determine the compositions of the liquid and vapor leaving the separator, and estimate the drum temperature.",
+    "task": "Calculate: (1) mole fraction of benzene in the liquid product, (2) mole fraction of benzene in the vapor product, (3) flash drum temperature, (4) liquid and vapor flow rates.",
+    "difficulty": "introductory",
+    "topics": [
+      "vapor-liquid equilibrium",
+      "Raoult's law",
+      "flash calculation",
+      "Antoine equation",
+      "binary mixture separation"
+    ]
+  },
+
+  "inputs": {
+    "feed_flow_rate": {
+      "value": 100,
+      "unit": "kmol/h",
+      "description": "Total molar flow rate of feed"
+    },
+    "feed_composition_benzene": {
+      "value": 0.50,
+      "unit": "mol_fraction",
+      "description": "Mole fraction of benzene in feed"
+    },
+    "feed_composition_toluene": {
+      "value": 0.50,
+      "unit": "mol_fraction",
+      "description": "Mole fraction of toluene in feed"
+    },
+    "pressure": {
+      "value": 101.325,
+      "unit": "kPa",
+      "description": "Flash drum operating pressure"
+    },
+    "vapor_fraction": {
+      "value": 0.25,
+      "unit": "dimensionless",
+      "description": "Fraction of feed that is vaporized (V/F)"
+    }
+  },
+
+  "expected_outputs": {
+    "liquid_benzene_mole_fraction": {
+      "value": 0.438,
+      "unit": "mol_fraction",
+      "description": "Mole fraction of benzene in liquid product (x_benzene)"
+    },
+    "vapor_benzene_mole_fraction": {
+      "value": 0.686,
+      "unit": "mol_fraction",
+      "description": "Mole fraction of benzene in vapor product (y_benzene)"
+    },
+    "flash_temperature": {
+      "value": 368.0,
+      "unit": "K",
+      "description": "Temperature in the flash drum (approximate, depends on Antoine constants used)"
+    },
+    "liquid_flow_rate": {
+      "value": 75,
+      "unit": "kmol/h",
+      "description": "Liquid product flow rate = F * (1 - V/F)"
+    },
+    "vapor_flow_rate": {
+      "value": 25,
+      "unit": "kmol/h",
+      "description": "Vapor product flow rate = F * (V/F)"
+    }
+  },
+
+  "acceptance_criteria": {
+    "tolerances": {
+      "liquid_benzene_mole_fraction": {
+        "type": "absolute",
+        "value": 0.02,
+        "_comment": "Within 0.02 of expected mole fraction"
+      },
+      "vapor_benzene_mole_fraction": {
+        "type": "absolute",
+        "value": 0.02,
+        "_comment": "Within 0.02 of expected mole fraction"
+      },
+      "flash_temperature": {
+        "type": "absolute",
+        "value": 3.0,
+        "_comment": "Within 3 K — varies with Antoine constant source"
+      },
+      "liquid_flow_rate": {
+        "type": "relative_percent",
+        "value": 1.0,
+        "_comment": "Within 1% — this is just arithmetic from V/F"
+      },
+      "vapor_flow_rate": {
+        "type": "relative_percent",
+        "value": 1.0,
+        "_comment": "Within 1%"
+      }
+    },
+    "must_include": [
+      "Identify this as a VLE flash calculation",
+      "Use Raoult's law or appropriate VLE correlation",
+      "Apply material balance (F = L + V)",
+      "State or use Antoine equation for vapor pressures"
+    ],
+    "must_not_include": [
+      "Assume ideal gas behavior without stating the assumption",
+      "Ignore the pressure specification",
+      "Confuse mole fraction with mass fraction"
+    ]
+  },
+
+  "domain_context": {
+    "recommended_tools": [
+      "DWSIM_flash_calculation",
+      "manual_Raoult_law_with_Antoine"
+    ],
+    "recommended_thermo_model": "Raoult's law (appropriate for benzene/toluene at 1 atm — nearly ideal system)",
+    "key_assumptions": [
+      "Ideal liquid mixture (benzene and toluene are chemically similar)",
+      "Ideal vapor phase (low pressure, 1 atm)",
+      "Steady-state operation",
+      "Thermal equilibrium between liquid and vapor"
+    ],
+    "common_mistakes": [
+      "Using wrong Antoine constant units (check if ln vs log10, Pa vs mmHg)",
+      "Forgetting that V/F is given, not temperature — this is a T-unknown flash",
+      "Applying Raoult's law without checking if the system is approximately ideal",
+      "Mixing up x (liquid) and y (vapor) compositions",
+      "Not closing the material balance — compositions should satisfy z = x(1-V/F) + y(V/F)"
+    ]
+  },
+
+  "agent_evaluation": {
+    "reasoning_checkpoints": [
+      {
+        "checkpoint": "Correctly identifies problem type as isothermal flash with specified V/F",
+        "weight": 0.15
+      },
+      {
+        "checkpoint": "Selects Raoult's law as appropriate VLE model for this system",
+        "weight": 0.15
+      },
+      {
+        "checkpoint": "Looks up or calculates Antoine equation parameters for benzene and toluene",
+        "weight": 0.10
+      },
+      {
+        "checkpoint": "Sets up the Rachford-Rice equation or equivalent flash equation",
+        "weight": 0.20
+      },
+      {
+        "checkpoint": "Solves iteratively for temperature (since T is the unknown)",
+        "weight": 0.15
+      },
+      {
+        "checkpoint": "Verifies answer by checking material balance closure",
+        "weight": 0.15
+      },
+      {
+        "checkpoint": "States assumptions explicitly",
+        "weight": 0.10
+      }
+    ],
+    "skill_document_expected": true
+  }
+}

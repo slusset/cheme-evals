@@ -1,0 +1,56 @@
+{
+  "id": "scibench-thermo-8.13",
+  "version": "0.1.0",
+  "_status": "DRAFT \u2014 requires human review of inputs, tolerances, and checkpoints",
+  "tags": [
+    "scibench",
+    "thermo"
+  ],
+  "source": {
+    "type": "textbook",
+    "reference": "SciBench dataset, source: thermo, problem 8.13",
+    "verified_by": "scibench_dataset"
+  },
+  "problem": {
+    "statement": "Autoclaves that are used to sterilize surgical tools require a temperature of 120 .^{\u00b0} C to kill some bacteria. If water is used for this purpose, at what pressure must the autoclave operate?",
+    "task": "Calculate the answer and express in atm.",
+    "difficulty": "intermediate",
+    "topics": [
+      "thermo"
+    ]
+  },
+  "inputs": {
+    "_TODO": {
+      "value": "PARSE_FROM_PROBLEM_TEXT",
+      "unit": "TODO",
+      "description": "Extract structured inputs from the problem statement above"
+    }
+  },
+  "expected_outputs": {
+    "answer": {
+      "value": 1.95,
+      "unit": "atm",
+      "description": "Expected answer from SciBench (raw unit: $\\mathrm{~atm}$)"
+    }
+  },
+  "acceptance_criteria": {
+    "tolerances": {
+      "answer": {
+        "type": "relative_percent",
+        "value": 5.0,
+        "_comment": "TODO \u2014 set appropriate tolerance based on problem type"
+      }
+    },
+    "must_include": [],
+    "must_not_include": []
+  },
+  "domain_context": {
+    "recommended_tools": [],
+    "key_assumptions": [],
+    "common_mistakes": []
+  },
+  "agent_evaluation": {
+    "reasoning_checkpoints": [],
+    "skill_document_expected": false
+  }
+}

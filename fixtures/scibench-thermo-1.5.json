@@ -1,0 +1,56 @@
+{
+  "id": "scibench-thermo-1.5",
+  "version": "0.1.0",
+  "_status": "DRAFT \u2014 requires human review of inputs, tolerances, and checkpoints",
+  "tags": [
+    "scibench",
+    "thermo"
+  ],
+  "source": {
+    "type": "textbook",
+    "reference": "SciBench dataset, source: thermo, problem 1.5",
+    "verified_by": "scibench_dataset"
+  },
+  "problem": {
+    "statement": "A gas sample is known to be a mixture of ethane and butane. A bulb having a 230.0 cm^3 capacity is filled with the gas to a pressure of 97.5 \u00d7 10^3 Pa at 23.1^{\u00b0} C. If the mass of the gas in the bulb is 0.3554 g, what is the mole percent of butane in the mixture?",
+    "task": "Calculate the answer and express in %.",
+    "difficulty": "intermediate",
+    "topics": [
+      "thermo"
+    ]
+  },
+  "inputs": {
+    "_TODO": {
+      "value": "PARSE_FROM_PROBLEM_TEXT",
+      "unit": "TODO",
+      "description": "Extract structured inputs from the problem statement above"
+    }
+  },
+  "expected_outputs": {
+    "answer": {
+      "value": 32.0,
+      "unit": "%",
+      "description": "Expected answer from SciBench (raw unit: %)"
+    }
+  },
+  "acceptance_criteria": {
+    "tolerances": {
+      "answer": {
+        "type": "relative_percent",
+        "value": 5.0,
+        "_comment": "TODO \u2014 set appropriate tolerance based on problem type"
+      }
+    },
+    "must_include": [],
+    "must_not_include": []
+  },
+  "domain_context": {
+    "recommended_tools": [],
+    "key_assumptions": [],
+    "common_mistakes": []
+  },
+  "agent_evaluation": {
+    "reasoning_checkpoints": [],
+    "skill_document_expected": false
+  }
+}
