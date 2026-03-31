@@ -1,0 +1,176 @@
+{
+  "eval_id": "flash-distillation-01-L3-20260331T124550Z",
+  "fixture_id": "flash-distillation-01",
+  "fixture_version": "1.1.0",
+  "layer": 3,
+  "timestamp": "2026-03-31T12:45:50.468503+00:00",
+  "git_sha": "d356af0",
+  "agent_meta": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0,
+    "elapsed_seconds": 77.16,
+    "input_tokens": 28990,
+    "output_tokens": 6384,
+    "tool_turns": 6,
+    "layer": 3
+  },
+  "scores": {
+    "numeric": {
+      "output_scores": {
+        "liquid_benzene_mole_fraction": {
+          "status": "PASS",
+          "expected": 0.445,
+          "actual": 0.4449,
+          "unit": "mol_fraction",
+          "error": "0.0001 (tolerance: \u00b10.02)",
+          "score": 1
+        },
+        "vapor_benzene_mole_fraction": {
+          "status": "PASS",
+          "expected": 0.665,
+          "actual": 0.6652,
+          "unit": "mol_fraction",
+          "error": "0.0002 (tolerance: \u00b10.02)",
+          "score": 1
+        },
+        "flash_temperature": {
+          "status": "PASS",
+          "expected": 366.9,
+          "actual": 366.9,
+          "unit": "K",
+          "error": "0.0000 (tolerance: \u00b13.0)",
+          "score": 1
+        },
+        "liquid_flow_rate": {
+          "status": "PASS",
+          "expected": 75,
+          "actual": 75.0,
+          "unit": "kmol/h",
+          "error": "0.00% (tolerance: \u00b11.0%)",
+          "score": 1
+        },
+        "vapor_flow_rate": {
+          "status": "PASS",
+          "expected": 25,
+          "actual": 25.0,
+          "unit": "kmol/h",
+          "error": "0.00% (tolerance: \u00b11.0%)",
+          "score": 1
+        }
+      },
+      "numeric_score": 5,
+      "numeric_possible": 5,
+      "numeric_pct": 100.0
+    },
+    "reasoning": {
+      "must_include": [
+        {
+          "requirement": "Identify this as a VLE flash calculation",
+          "found": true
+        },
+        {
+          "requirement": "Use Raoult's law or appropriate VLE correlation",
+          "found": false
+        },
+        {
+          "requirement": "Apply material balance (F = L + V)",
+          "found": true
+        },
+        {
+          "requirement": "State or use Antoine equation for vapor pressures",
+          "found": true
+        }
+      ],
+      "must_not_include": [
+        {
+          "requirement": "Assume ideal gas behavior without stating the assumption",
+          "violated": false
+        },
+        {
+          "requirement": "Ignore the pressure specification",
+          "violated": false
+        },
+        {
+          "requirement": "Confuse mole fraction with mass fraction",
+          "violated": false
+        }
+      ],
+      "reasoning_checkpoints": [
+        {
+          "checkpoint": "Correctly identifies problem type as isothermal flash with specified V/F",
+          "weight": 0.15,
+          "found": false
+        },
+        {
+          "checkpoint": "Selects Raoult's law as appropriate VLE model for this system",
+          "weight": 0.15,
+          "found": true
+        },
+        {
+          "checkpoint": "Looks up or calculates Antoine equation parameters for benzene and toluene",
+          "weight": 0.1,
+          "found": true
+        },
+        {
+          "checkpoint": "Sets up the Rachford-Rice equation or equivalent flash equation",
+          "weight": 0.2,
+          "found": true
+        },
+        {
+          "checkpoint": "Solves iteratively for temperature (since T is the unknown)",
+          "weight": 0.15,
+          "found": true
+        },
+        {
+          "checkpoint": "Verifies answer by checking material balance closure",
+          "weight": 0.15,
+          "found": false
+        },
+        {
+          "checkpoint": "States assumptions explicitly",
+          "weight": 0.1,
+          "found": false
+        }
+      ],
+      "reasoning_score_pct": 60.0
+    },
+    "overall_pct": 84.0
+  },
+  "agent_response": {
+    "reasoning": "This is a flash drum separation problem requiring solution of the Rachford-Rice equation. I started with the given equimolar benzene-toluene feed at 100 kmol/h with 25% vaporization. Using Antoine equation constants for both components, I calculated vapor pressures as functions of temperature. The flash temperature was found by solving the Rachford-Rice equation: \u03a3[z_i(K_i-1)/(1+\u03c8(K_i-1))] = 0, where \u03c8 = V/F = 0.25 and K_i = P_sat_i/P. Using bisection method, I found the temperature where this equation equals zero. Then I calculated liquid and vapor compositions using flash equations and verified with material balances.",
+    "assumptions": [
+      "Ideal vapor-liquid equilibrium (Raoult's law applies)",
+      "Antoine equation accurately represents vapor pressures in the temperature range",
+      "No heat losses from the flash drum",
+      "Steady-state operation",
+      "Perfect mixing in both phases",
+      "Negligible pressure drop across the drum"
+    ],
+    "method": "Rachford-Rice equation solved by bisection method combined with Antoine equation for vapor pressures. Used the standard flash calculation approach where K_i = P_sat_i/P and solved iteratively for the temperature that satisfies the material balance constraint with the given vapor fraction.",
+    "outputs": {
+      "liquid_benzene_mole_fraction": {
+        "value": 0.4449,
+        "unit": "mol_fraction"
+      },
+      "vapor_benzene_mole_fraction": {
+        "value": 0.6652,
+        "unit": "mol_fraction"
+      },
+      "flash_temperature": {
+        "value": 366.9,
+        "unit": "K"
+      },
+      "liquid_flow_rate": {
+        "value": 75.0,
+        "unit": "kmol/h"
+      },
+      "vapor_flow_rate": {
+        "value": 25.0,
+        "unit": "kmol/h"
+      }
+    },
+    "confidence": 0.95,
+    "skill_notes": "For flash drum problems: (1) Always use Rachford-Rice equation for given vapor fraction, (2) Antoine equation form matters - verify units carefully (mmHg vs kPa, \u00b0C vs K), (3) Bisection method works well for temperature iteration, (4) Material balance verification is essential to confirm solution accuracy, (5) Benzene being more volatile concentrates in vapor phase as expected."
+  }
+}

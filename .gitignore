@@ -1,3 +1,6 @@
 .env
 
 .idea
+.claude/worktrees
+
+**/__pycache__

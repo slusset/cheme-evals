@@ -1,0 +1,3 @@
+- [Project vision](project_vision.md) — BEAM/ReasoningNode merge, self-organizing agents, ad-hoc tool generation
+- [User profile](user_profile.md) — ChemE expert, research-oriented, exploring evals + fine-tuning + agent architecttic
+- [No worktrees](feedback_no_worktrees.md) — Work directly on main, user manages git

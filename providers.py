@@ -25,6 +25,8 @@ Adding a new provider:
 
 import json
 import os
+import subprocess
+import sys
 import urllib.request
 import urllib.error
 
@@ -74,6 +76,162 @@ def call_anthropic(system: str, user: str, model: str, temperature: float,
         "model": resp.get("model", model),
         "input_tokens": resp["usage"]["input_tokens"],
         "output_tokens": resp["usage"]["output_tokens"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Anthropic — Layer 3 tool-use loop
+# ---------------------------------------------------------------------------
+
+PYTHON_EXECUTE_TOOL = {
+    "name": "python_execute",
+    "description": (
+        "Execute Python code and return stdout/stderr. Use for iterative "
+        "numerical calculations (e.g., bisection, Newton-Raphson, Rachford-Rice). "
+        "The code runs in a sandboxed subprocess with a 30-second timeout. "
+        "Use print() to return results."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "code": {
+                "type": "string",
+                "description": "Python code to execute. Use print() to output results.",
+            }
+        },
+        "required": ["code"],
+    },
+}
+
+
+def _execute_python_sandbox(code: str, timeout: int = 30) -> dict:
+    """Run Python code in a subprocess with minimal environment."""
+    safe_env = {
+        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+        "HOME": "/tmp",
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=safe_env,
+        )
+        return {
+            "stdout": result.stdout[-10_000:],
+            "stderr": result.stderr[-5_000:],
+            "exit_code": result.returncode,
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "stdout": "",
+            "stderr": f"Execution timed out after {timeout} seconds",
+            "exit_code": -1,
+        }
+
+
+def call_anthropic_tool_loop(system: str, user: str, model: str,
+                             temperature: float, max_tokens: int,
+                             api_key: str, max_turns: int = 10) -> dict:
+    """
+    Multi-turn tool-use loop for Layer 3.
+
+    The model can call python_execute to run iterative calculations,
+    then incorporate the results into its final JSON answer.
+    """
+    headers = {
+        "x-api-key": api_key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
+    messages = [{"role": "user", "content": user}]
+    total_input = 0
+    total_output = 0
+    tool_turns = 0
+
+    for turn in range(max_turns):
+        body = {
+            "model": model,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "system": system,
+            "messages": messages,
+            "tools": [PYTHON_EXECUTE_TOOL],
+        }
+        resp = _post_json(
+            url="https://api.anthropic.com/v1/messages",
+            headers=headers,
+            body=body,
+            timeout=180,
+        )
+
+        total_input += resp["usage"]["input_tokens"]
+        total_output += resp["usage"]["output_tokens"]
+
+        # Append assistant response to conversation history
+        messages.append({"role": "assistant", "content": resp["content"]})
+
+        if resp["stop_reason"] == "end_turn":
+            # Extract text from content blocks
+            text = "".join(
+                block["text"] for block in resp["content"]
+                if block["type"] == "text"
+            )
+            return {
+                "text": text,
+                "model": resp.get("model", model),
+                "input_tokens": total_input,
+                "output_tokens": total_output,
+                "tool_turns": tool_turns,
+            }
+
+        if resp["stop_reason"] == "tool_use":
+            tool_results = []
+            for block in resp["content"]:
+                if block["type"] == "tool_use":
+                    tool_turns += 1
+                    code = block["input"]["code"]
+                    print(f"    [tool] Turn {tool_turns}: executing python ({len(code)} chars)...")
+                    result = _execute_python_sandbox(code)
+
+                    # Format output for the model
+                    output = result["stdout"]
+                    if result["stderr"]:
+                        output += f"\n[stderr]\n{result['stderr']}"
+                    if result["exit_code"] != 0:
+                        output += f"\n[exit_code: {result['exit_code']}]"
+
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block["id"],
+                        "content": output or "(no output)",
+                    })
+
+            messages.append({"role": "user", "content": tool_results})
+            continue
+
+        # Unexpected stop_reason — bail
+        break
+
+    # Fell through max_turns — extract whatever text the model produced
+    text = ""
+    for msg in reversed(messages):
+        if msg["role"] == "assistant" and isinstance(msg["content"], list):
+            text = "".join(
+                b["text"] for b in msg["content"]
+                if isinstance(b, dict) and b.get("type") == "text"
+            )
+            if text:
+                break
+    text += "\n\n[WARNING: max tool turns reached, answer may be incomplete]"
+    return {
+        "text": text,
+        "model": model,
+        "input_tokens": total_input,
+        "output_tokens": total_output,
+        "tool_turns": tool_turns,
     }
 
 

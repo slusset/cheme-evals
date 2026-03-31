@@ -171,14 +171,16 @@ Each output should have "value" (number) and "unit" (string).
 # Agent execution
 # ---------------------------------------------------------------------------
 
-from providers import PROVIDERS, resolve_provider, get_api_key
+from providers import PROVIDERS, resolve_provider, get_api_key, call_anthropic_tool_loop
 
 
 def call_agent(system_prompt: str, user_prompt: str, mock_path: str = None,
-               provider_name: str = None, model: str = None) -> dict:
+               provider_name: str = None, model: str = None,
+               layer: int = 1) -> dict:
     """
     Send the problem to the agent and get a response.
     If mock_path is provided, return the recorded response instead.
+    Layer 3 uses the multi-turn tool loop (python_execute).
     """
     if mock_path and os.path.exists(mock_path):
         print(f"  [mock] Loading from {mock_path}")
@@ -191,17 +193,29 @@ def call_agent(system_prompt: str, user_prompt: str, mock_path: str = None,
     model = model or provider["default_model"]
     api_key = get_api_key(provider_name)
 
-    print(f"  [live] Calling {provider_name} ({model})...")
-    start_time = time.time()
-
-    raw = provider["call"](
-        system=system_prompt,
-        user=user_prompt,
-        model=model,
-        temperature=0,
-        max_tokens=4096,
-        api_key=api_key,
-    )
+    # Layer 3: use tool loop for Anthropic provider
+    if layer == 3 and provider_name == "anthropic":
+        print(f"  [live] Calling {provider_name} ({model}) with tool loop...")
+        start_time = time.time()
+        raw = call_anthropic_tool_loop(
+            system=system_prompt,
+            user=user_prompt,
+            model=model,
+            temperature=0,
+            max_tokens=4096,
+            api_key=api_key,
+        )
+    else:
+        print(f"  [live] Calling {provider_name} ({model})...")
+        start_time = time.time()
+        raw = provider["call"](
+            system=system_prompt,
+            user=user_prompt,
+            model=model,
+            temperature=0,
+            max_tokens=4096,
+            api_key=api_key,
+        )
 
     elapsed = time.time() - start_time
 
@@ -223,7 +237,7 @@ def call_agent(system_prompt: str, user_prompt: str, mock_path: str = None,
             "outputs": {}
         }
 
-    response["_meta"] = {
+    meta = {
         "provider": provider_name,
         "model": raw["model"],
         "temperature": 0,
@@ -231,6 +245,9 @@ def call_agent(system_prompt: str, user_prompt: str, mock_path: str = None,
         "input_tokens": raw["input_tokens"],
         "output_tokens": raw["output_tokens"],
     }
+    if "tool_turns" in raw:
+        meta["tool_turns"] = raw["tool_turns"]
+    response["_meta"] = meta
 
     return response
 
@@ -401,14 +418,11 @@ def score_outputs(actual: dict, expected: dict, tolerances: dict) -> dict:
     }
 
 
-def score_reasoning(response: dict, fixture: dict) -> dict:
+def score_reasoning_keyword(response: dict, fixture: dict) -> dict:
     """
-    Score the agent's reasoning process (not just the final answer).
-    This checks the 'must_include' and 'must_not_include' criteria,
-    and the reasoning checkpoints.
-
-    Note: This is a simple keyword/heuristic check. A more sophisticated
-    version would use an LLM-as-judge pattern.
+    Score reasoning via keyword/heuristic matching (fast, free, deterministic).
+    Used as the default when --judge is not specified, and as a baseline
+    comparison when --judge IS specified.
     """
     criteria = fixture.get("acceptance_criteria", {})
     reasoning_text = json.dumps(response).lower()
@@ -466,6 +480,276 @@ def score_reasoning(response: dict, fixture: dict) -> dict:
         "reasoning_checkpoints": checkpoint_results,
         "reasoning_score_pct": round(weighted_score / total_weight * 100, 1) if total_weight > 0 else 0,
     }
+
+
+# ---------------------------------------------------------------------------
+# LLM-as-judge reasoning scorer
+# ---------------------------------------------------------------------------
+
+JUDGE_DEFAULT_MODEL = "claude-opus-4-20250514"
+
+def _build_judge_prompt(fixture: dict, response: dict) -> tuple[str, str]:
+    """
+    Build the system and user prompts for the LLM judge.
+    Returns (system_prompt, user_prompt).
+    """
+    criteria = fixture.get("acceptance_criteria", {})
+    checkpoints = fixture.get("agent_evaluation", {}).get("reasoning_checkpoints", [])
+    domain = fixture.get("domain_context", {})
+
+    # Build the rubric from fixture data
+    checkpoint_rubric = "\n".join(
+        f"  {i+1}. (weight {cp['weight']:.2f}) {cp['checkpoint']}"
+        for i, cp in enumerate(checkpoints)
+    )
+
+    must_include_rubric = "\n".join(
+        f"  - {item}" for item in criteria.get("must_include", [])
+    ) or "  (none specified)"
+
+    must_not_rubric = "\n".join(
+        f"  - {item}" for item in criteria.get("must_not_include", [])
+    ) or "  (none specified)"
+
+    common_mistakes = "\n".join(
+        f"  - {m}" for m in domain.get("common_mistakes", [])
+    ) or "  (none specified)"
+
+    system = """You are an expert chemical engineering evaluator. Your job is to assess
+whether a student/agent's solution demonstrates correct reasoning for a chemical
+engineering problem.
+
+You will be given:
+1. The problem statement
+2. A rubric with weighted reasoning checkpoints
+3. Must-include and must-not-include criteria
+4. The agent's full response
+
+## Evaluation rules
+
+- Judge reasoning quality, not just whether the final answer is correct.
+- A checkpoint is MET if the agent demonstrates that reasoning step, even if they
+  use different terminology (e.g., "Rachford-Rice" vs "flash objective function").
+- A checkpoint is NOT MET only if the agent clearly skipped or incorrectly performed
+  that reasoning step.
+- For must-not-include items: flag as VIOLATED only if the agent actually commits
+  the error described, not merely if they mention the topic.
+- Be fair but rigorous. Partial credit is not available — each checkpoint is met or not.
+
+## Response format
+
+Respond with valid JSON only. No markdown fences, no preamble.
+
+{
+  "reasoning_checkpoints": [
+    {
+      "checkpoint": "the checkpoint text",
+      "weight": 0.15,
+      "met": true,
+      "evidence": "brief quote or paraphrase from agent response supporting your verdict",
+      "confidence": 0.95
+    }
+  ],
+  "must_include": [
+    {
+      "requirement": "the requirement text",
+      "found": true,
+      "evidence": "brief supporting quote"
+    }
+  ],
+  "must_not_include": [
+    {
+      "requirement": "the requirement text",
+      "violated": false,
+      "evidence": "why it was or was not violated"
+    }
+  ],
+  "overall_reasoning_notes": "1-2 sentence summary of reasoning quality",
+  "reasoning_score_pct": 72.5
+}
+
+The reasoning_score_pct should be: sum(weight for met checkpoints) / sum(all weights) * 100,
+rounded to 1 decimal place. Compute this exactly from your checkpoint verdicts."""
+
+    # Serialize the agent response (excluding internal metadata)
+    agent_text = json.dumps({
+        k: v for k, v in response.items() if not k.startswith("_")
+    }, indent=2)
+
+    user = f"""## Problem
+
+{fixture['problem']['statement']}
+
+## Task
+
+{fixture['problem']['task']}
+
+## Evaluation rubric
+
+### Reasoning checkpoints (weighted):
+{checkpoint_rubric}
+
+### Must include:
+{must_include_rubric}
+
+### Must not include:
+{must_not_rubric}
+
+### Known common mistakes for this problem type:
+{common_mistakes}
+
+## Agent response to evaluate
+
+{agent_text}
+
+## Instructions
+
+Evaluate each checkpoint and criterion. Return your verdict as JSON."""
+
+    return system, user
+
+
+def score_reasoning_llm_judge(response: dict, fixture: dict,
+                              judge_provider: str = "anthropic",
+                              judge_model: str = None) -> dict:
+    """
+    Score reasoning using an LLM-as-judge pattern.
+    Sends the fixture rubric + agent response to a (typically stronger) model
+    and parses its structured verdict.
+
+    Returns the same shape as score_reasoning_keyword() for drop-in compatibility,
+    plus additional judge-specific fields (evidence, confidence, notes).
+    """
+    judge_model = judge_model or JUDGE_DEFAULT_MODEL
+
+    system_prompt, user_prompt = _build_judge_prompt(fixture, response)
+
+    # Resolve provider and call
+    provider_name = resolve_provider(judge_provider)
+    provider = PROVIDERS[provider_name]
+    api_key = get_api_key(provider_name)
+
+    print(f"  [judge] Calling {provider_name} ({judge_model})...")
+    start = time.time()
+
+    raw = provider["call"](
+        system=system_prompt,
+        user=user_prompt,
+        model=judge_model,
+        temperature=0,
+        max_tokens=4096,
+        api_key=api_key,
+    )
+
+    elapsed = time.time() - start
+    print(f"  [judge] Done in {elapsed:.1f}s ({raw.get('input_tokens', '?')} in / {raw.get('output_tokens', '?')} out)")
+
+    # Parse the judge response
+    cleaned = raw["text"].strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.split("\n", 1)[1]
+    if cleaned.endswith("```"):
+        cleaned = cleaned.rsplit("```", 1)[0]
+    cleaned = cleaned.strip()
+
+    try:
+        verdict = json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        print(f"  [judge] WARNING: Failed to parse judge response: {e}")
+        print(f"  [judge] Falling back to keyword scoring")
+        fallback = score_reasoning_keyword(response, fixture)
+        fallback["judge_error"] = str(e)
+        fallback["judge_raw"] = raw["text"][:500]
+        return fallback
+
+    # Normalize into the standard score shape
+    # Checkpoint results
+    checkpoint_results = []
+    weighted_score = 0
+    total_weight = 0
+    for cp in verdict.get("reasoning_checkpoints", []):
+        weight = cp.get("weight", 0.1)
+        met = cp.get("met", False)
+        total_weight += weight
+        if met:
+            weighted_score += weight
+        checkpoint_results.append({
+            "checkpoint": cp.get("checkpoint", ""),
+            "weight": weight,
+            "found": met,  # "found" for compatibility with keyword scorer
+            "evidence": cp.get("evidence", ""),
+            "confidence": cp.get("confidence", None),
+        })
+
+    # Must-include results
+    must_include_results = []
+    for mi in verdict.get("must_include", []):
+        must_include_results.append({
+            "requirement": mi.get("requirement", ""),
+            "found": mi.get("found", False),
+            "evidence": mi.get("evidence", ""),
+        })
+
+    # Must-not-include results
+    must_not_results = []
+    for mn in verdict.get("must_not_include", []):
+        must_not_results.append({
+            "requirement": mn.get("requirement", ""),
+            "violated": mn.get("violated", False),
+            "evidence": mn.get("evidence", ""),
+        })
+
+    # Compute score from verdicts (don't trust the model's arithmetic)
+    computed_pct = round(weighted_score / total_weight * 100, 1) if total_weight > 0 else 0
+
+    return {
+        "must_include": must_include_results,
+        "must_not_include": must_not_results,
+        "reasoning_checkpoints": checkpoint_results,
+        "reasoning_score_pct": computed_pct,
+        "judge_method": "llm",
+        "judge_model": judge_model,
+        "judge_provider": judge_provider,
+        "judge_notes": verdict.get("overall_reasoning_notes", ""),
+        "judge_elapsed_seconds": round(elapsed, 2),
+        "judge_tokens": {
+            "input": raw.get("input_tokens", 0),
+            "output": raw.get("output_tokens", 0),
+        },
+    }
+
+
+def score_reasoning(response: dict, fixture: dict, use_judge: bool = False,
+                    judge_provider: str = "anthropic", judge_model: str = None) -> dict:
+    """
+    Score reasoning — dispatches to keyword or LLM judge based on use_judge flag.
+    When using judge, also runs keyword scorer and includes both for comparison.
+    """
+    if not use_judge:
+        result = score_reasoning_keyword(response, fixture)
+        result["judge_method"] = "keyword"
+        return result
+
+    # Run both scorers when judge is enabled
+    keyword_result = score_reasoning_keyword(response, fixture)
+    judge_result = score_reasoning_llm_judge(
+        response, fixture,
+        judge_provider=judge_provider,
+        judge_model=judge_model,
+    )
+
+    # The judge result is authoritative; include keyword as baseline comparison
+    judge_result["keyword_baseline"] = {
+        "reasoning_score_pct": keyword_result["reasoning_score_pct"],
+        "checkpoints": keyword_result["reasoning_checkpoints"],
+    }
+
+    delta = judge_result["reasoning_score_pct"] - keyword_result["reasoning_score_pct"]
+    print(f"  [judge] Score: {judge_result['reasoning_score_pct']}% "
+          f"(keyword baseline: {keyword_result['reasoning_score_pct']}%, "
+          f"delta: {'+' if delta >= 0 else ''}{delta:.1f}%)")
+
+    return judge_result
 
 
 # ---------------------------------------------------------------------------
@@ -535,22 +819,39 @@ def print_results(result: dict):
             print(f"      error: {r['error']}")
 
     # Reasoning
-    print(f"\n  REASONING: {reasoning['reasoning_score_pct']}%")
+    judge_method = reasoning.get("judge_method", "keyword")
+    method_label = "LLM JUDGE" if judge_method == "llm" else "KEYWORD"
+    print(f"\n  REASONING ({method_label}): {reasoning['reasoning_score_pct']}%")
+    if judge_method == "llm":
+        print(f"  Judge: {reasoning.get('judge_provider', '?')}/{reasoning.get('judge_model', '?')}")
+        baseline = reasoning.get("keyword_baseline", {})
+        if baseline:
+            print(f"  Keyword baseline: {baseline.get('reasoning_score_pct', '?')}%")
     print("  " + "-" * 40)
     for cp in reasoning.get("reasoning_checkpoints", []):
         icon = "  ✓" if cp["found"] else "  ✗"
-        print(f"  {icon} {cp['checkpoint']} (weight: {cp['weight']})")
+        evidence = cp.get("evidence", "")
+        evidence_str = f"\n        → {evidence}" if evidence else ""
+        print(f"  {icon} {cp['checkpoint']} (weight: {cp['weight']}){evidence_str}")
 
     # Must include
     for mi in reasoning.get("must_include", []):
         icon = "  ✓" if mi["found"] else "  ✗"
-        print(f"  {icon} Must include: {mi['requirement']}")
+        evidence = mi.get("evidence", "")
+        evidence_str = f"\n        → {evidence}" if evidence else ""
+        print(f"  {icon} Must include: {mi['requirement']}{evidence_str}")
 
     # Must not include
     for mn in reasoning.get("must_not_include", []):
         icon = "  ✓" if not mn["violated"] else "  ✗"
+        evidence = mn.get("evidence", "")
+        evidence_str = f"\n        → {evidence}" if evidence else ""
         print(f"  {icon} Must NOT: {mn['requirement']}" +
-              (" [VIOLATED]" if mn["violated"] else ""))
+              (" [VIOLATED]" if mn["violated"] else "") + evidence_str)
+
+    # Judge notes
+    if reasoning.get("judge_notes"):
+        print(f"\n  JUDGE NOTES: {reasoning['judge_notes']}")
 
     # Overall
     print(f"\n  OVERALL SCORE: {scores['overall_pct']}%")
@@ -571,12 +872,16 @@ def print_results(result: dict):
 # ---------------------------------------------------------------------------
 
 def run_fixture(fixture_path: str, use_mock: bool = False, save_mock_flag: bool = False,
-                provider_name: str = None, model: str = None, layer: int = 1):
+                provider_name: str = None, model: str = None, layer: int = 1,
+                use_judge: bool = False, judge_provider: str = "anthropic",
+                judge_model: str = None):
     """Run a single fixture evaluation."""
     print(f"\nLoading fixture: {fixture_path}")
     fixture = load_fixture(fixture_path)
     print(f"  ID: {fixture['id']}")
     print(f"  Layer: {layer}")
+    if use_judge:
+        print(f"  Judge: {judge_provider}/{judge_model or JUDGE_DEFAULT_MODEL}")
     print(f"  Problem: {fixture['problem']['statement'][:80]}...")
 
     # Build prompts (layer controls what gets included)
@@ -588,9 +893,10 @@ def run_fixture(fixture_path: str, use_mock: bool = False, save_mock_flag: bool 
     if use_mock:
         mock_path = str(MOCKS_DIR / "agent-responses" / f"{fixture['id']}.json")
 
-    # Call agent
+    # Call agent (layer 3 uses tool loop)
     response = call_agent(system_prompt, user_prompt, mock_path,
-                          provider_name=provider_name, model=model)
+                          provider_name=provider_name, model=model,
+                          layer=layer)
 
     # Save mock if requested
     if save_mock_flag and not use_mock:
@@ -601,7 +907,9 @@ def run_fixture(fixture_path: str, use_mock: bool = False, save_mock_flag: bool 
     tolerances = fixture.get("acceptance_criteria", {}).get("tolerances", {})
 
     output_scores = score_outputs(agent_outputs, fixture["expected_outputs"], tolerances)
-    reasoning_scores = score_reasoning(response, fixture)
+    reasoning_scores = score_reasoning(response, fixture, use_judge=use_judge,
+                                       judge_provider=judge_provider,
+                                       judge_model=judge_model)
 
     # Assemble and save result
     result = assemble_result(fixture, response, output_scores, reasoning_scores, layer=layer)
@@ -640,6 +948,19 @@ def log_experiment(results: list, tag: str, layer: int, provider_name: str, mode
     avg_numeric = sum(fs["numeric_pct"] for fs in fixture_scores.values()) / len(fixture_scores) if fixture_scores else 0
     avg_reasoning = sum(fs["reasoning_pct"] for fs in fixture_scores.values()) / len(fixture_scores) if fixture_scores else 0
 
+    # Detect judge usage from first result
+    judge_info = {}
+    if results:
+        reasoning_meta = results[0].get("scores", {}).get("reasoning", {})
+        if reasoning_meta.get("judge_method") == "llm":
+            judge_info = {
+                "judge_method": "llm",
+                "judge_model": reasoning_meta.get("judge_model", "unknown"),
+                "judge_provider": reasoning_meta.get("judge_provider", "unknown"),
+            }
+        else:
+            judge_info = {"judge_method": "keyword"}
+
     entry = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "tag": tag,
@@ -647,6 +968,7 @@ def log_experiment(results: list, tag: str, layer: int, provider_name: str, mode
         "layer": layer,
         "provider": provider_name or "anthropic",
         "model": model or results[0].get("agent_meta", {}).get("model", "unknown") if results else "unknown",
+        **judge_info,
         "n_fixtures": len(results),
         "avg_overall_pct": round(avg_overall, 1),
         "avg_numeric_pct": round(avg_numeric, 1),
@@ -725,9 +1047,8 @@ def main():
     available_providers = ", ".join(sorted(PROVIDERS))
     parser = argparse.ArgumentParser(description="ChemE Agent Eval Runner")
 
-    # Mutually exclusive modes
+    # Modes (default: run all curated fixtures)
     parser.add_argument("--fixture", type=str, help="Path to a single fixture JSON file")
-    parser.add_argument("--all", action="store_true", help="Run all fixtures in fixtures/")
     parser.add_argument("--compare", action="store_true", help="Compare recent experiment runs (no eval executed)")
 
     # Run options
@@ -741,8 +1062,16 @@ def main():
                         help="Eval layer: 1=all inputs/no skills, 2=problem inputs+skills, 3=problem inputs+tools (default: 1)")
     parser.add_argument("--tag", type=str, default=None,
                         help="Label for this experiment run (e.g. 'baseline', 'added-skills', 'sonnet-vs-opus')")
-    parser.add_argument("--curated-only", action="store_true",
-                        help="Only run fixtures with version >= 1.0.0 (skip drafts)")
+    parser.add_argument("--include-drafts", action="store_true",
+                        help="Include draft fixtures (version < 1.0.0). Default: curated only")
+
+    # LLM judge options
+    parser.add_argument("--judge", action="store_true",
+                        help="Use LLM-as-judge for reasoning scoring (semantic, not keyword)")
+    parser.add_argument("--judge-provider", type=str, default="anthropic",
+                        help=f"Provider for the judge model ({available_providers}). Default: anthropic")
+    parser.add_argument("--judge-model", type=str, default=None,
+                        help=f"Judge model override. Default: {JUDGE_DEFAULT_MODEL}")
     args = parser.parse_args()
 
     # Compare mode — just print the table and exit
@@ -750,8 +1079,7 @@ def main():
         compare_experiments()
         return
 
-    if not args.fixture and not args.all:
-        parser.error("one of --fixture, --all, or --compare is required")
+    # Default: run all curated fixtures (no flags needed)
 
     run_kwargs = dict(
         use_mock=args.mock,
@@ -759,6 +1087,9 @@ def main():
         provider_name=args.provider,
         model=args.model,
         layer=args.layer,
+        use_judge=args.judge,
+        judge_provider=args.judge_provider,
+        judge_model=args.judge_model,
     )
 
     results = []
@@ -770,8 +1101,8 @@ def main():
         # Skip non-fixture files
         fixtures = [f for f in fixtures if f.name != "fixture-schema.json"]
 
-        # Filter to curated-only if requested
-        if args.curated_only:
+        # Default: curated only (version >= 1.0.0). Use --include-drafts to run all.
+        if not args.include_drafts:
             curated = []
             for f in fixtures:
                 with open(f) as fh:
