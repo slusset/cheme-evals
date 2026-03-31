@@ -1,0 +1,143 @@
+{
+  "eval_id": "scibench-thermo-9.8-L1-20260331T001344Z",
+  "fixture_id": "scibench-thermo-9.8",
+  "fixture_version": "1.0.0",
+  "layer": 1,
+  "timestamp": "2026-03-31T00:13:44.785187+00:00",
+  "git_sha": "3c0973b",
+  "agent_meta": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0,
+    "elapsed_seconds": 9.98,
+    "input_tokens": 615,
+    "output_tokens": 670
+  },
+  "scores": {
+    "numeric": {
+      "output_scores": {
+        "partial_pressure_benzene": {
+          "status": "PASS",
+          "expected": 33.6,
+          "actual": 33.6,
+          "unit": "Torr",
+          "error": "0.0000 (tolerance: \u00b10.5)",
+          "score": 1
+        },
+        "partial_pressure_hexane": {
+          "status": "PASS",
+          "expected": 136.08,
+          "actual": 136.08,
+          "unit": "Torr",
+          "error": "0.0000 (tolerance: \u00b10.5)",
+          "score": 1
+        },
+        "total_vapor_pressure": {
+          "status": "PASS",
+          "expected": 169.68,
+          "actual": 169.68,
+          "unit": "Torr",
+          "error": "0.0000 (tolerance: \u00b11.0)",
+          "score": 1
+        },
+        "vapor_mole_fraction_benzene": {
+          "status": "PASS",
+          "expected": 0.198,
+          "actual": 0.198,
+          "unit": "mol_fraction",
+          "error": "0.0000 (tolerance: \u00b10.005)",
+          "score": 1
+        }
+      },
+      "numeric_score": 4,
+      "numeric_possible": 4,
+      "numeric_pct": 100.0
+    },
+    "reasoning": {
+      "must_include": [
+        {
+          "requirement": "Apply Raoult's law to calculate partial pressures",
+          "found": true
+        },
+        {
+          "requirement": "Sum partial pressures for total vapor pressure",
+          "found": true
+        },
+        {
+          "requirement": "State or use the ideal solution assumption",
+          "found": true
+        }
+      ],
+      "must_not_include": [
+        {
+          "requirement": "Use activity coefficients for an ideal solution",
+          "violated": false
+        },
+        {
+          "requirement": "Confuse liquid mole fraction with vapor mole fraction",
+          "violated": true
+        }
+      ],
+      "reasoning_checkpoints": [
+        {
+          "checkpoint": "Identifies this as an ideal solution problem where Raoult's law applies directly",
+          "weight": 0.2,
+          "found": true
+        },
+        {
+          "checkpoint": "Calculates both partial pressures using P_i = x_i * P_i_sat",
+          "weight": 0.25,
+          "found": true
+        },
+        {
+          "checkpoint": "Sums partial pressures to get total vapor pressure",
+          "weight": 0.2,
+          "found": true
+        },
+        {
+          "checkpoint": "Calculates vapor phase composition using y_i = P_i / P_total",
+          "weight": 0.2,
+          "found": true
+        },
+        {
+          "checkpoint": "States the ideal solution assumption and why it is appropriate",
+          "weight": 0.15,
+          "found": true
+        }
+      ],
+      "reasoning_score_pct": 100.0
+    },
+    "overall_pct": 100.0
+  },
+  "agent_response": {
+    "reasoning": "This is a classic ideal solution problem using Raoult's Law. For an ideal solution, the partial pressure of each component equals its mole fraction in the liquid phase multiplied by its pure component vapor pressure. The total vapor pressure is the sum of partial pressures, and the vapor phase mole fraction can be calculated using Dalton's Law.",
+    "assumptions": [
+      "The solution behaves ideally (follows Raoult's Law)",
+      "The vapor phase behaves as an ideal gas",
+      "No molecular interactions between benzene and hexane",
+      "Temperature and pressure are constant",
+      "The given mole fractions sum to 1.0 (0.28 + 0.72 = 1.0)"
+    ],
+    "method": "Raoult's Law for ideal solutions: Pi = xi * Pi\u00b0, where Pi is partial pressure, xi is liquid mole fraction, and Pi\u00b0 is pure component vapor pressure. Total pressure is sum of partial pressures. Vapor mole fraction calculated using Dalton's Law.",
+    "outputs": {
+      "partial_pressure_benzene": {
+        "value": 33.6,
+        "unit": "Torr"
+      },
+      "partial_pressure_hexane": {
+        "value": 136.08,
+        "unit": "Torr"
+      },
+      "total_vapor_pressure": {
+        "value": 169.68,
+        "unit": "Torr"
+      },
+      "vapor_mole_fraction_benzene": {
+        "value": 0.198,
+        "unit": "mol_fraction"
+      }
+    },
+    "confidence": 0.98,
+    "skill_notes": "For ideal solution problems: (1) Use Raoult's Law for partial pressures, (2) Sum partial pressures for total pressure, (3) Use Dalton's Law for vapor composition, (4) Always verify mole fractions sum to 1.0. The more volatile component (hexane) is enriched in the vapor phase compared to the liquid phase."
+  }
+}

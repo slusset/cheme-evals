@@ -1,0 +1,58 @@
+{
+  "eval_id": "scibench-thermo-1.5-L2-20260330T210759Z",
+  "fixture_id": "scibench-thermo-1.5",
+  "fixture_version": "0.1.0",
+  "layer": 2,
+  "timestamp": "2026-03-30T21:07:59.302414+00:00",
+  "git_sha": "3c0973b",
+  "agent_meta": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0,
+    "elapsed_seconds": 10.01,
+    "input_tokens": 3892,
+    "output_tokens": 550
+  },
+  "scores": {
+    "numeric": {
+      "output_scores": {
+        "answer": {
+          "status": "FAIL",
+          "expected": 32.0,
+          "actual": 41.28,
+          "unit": "%",
+          "error": "29.00% (tolerance: \u00b15.0%)",
+          "score": 0
+        }
+      },
+      "numeric_score": 0,
+      "numeric_possible": 1,
+      "numeric_pct": 0.0
+    },
+    "reasoning": {
+      "must_include": [],
+      "must_not_include": [],
+      "reasoning_checkpoints": [],
+      "reasoning_score_pct": 0
+    },
+    "overall_pct": 0.0
+  },
+  "agent_response": {
+    "reasoning": "This is a gas mixture problem where I need to find the composition using the ideal gas law and mass balance. I have a mixture of ethane (C2H6) and butane (C4H10) with known total volume, pressure, temperature, and mass. I'll use the ideal gas law to find total moles, then set up mass and mole balance equations to solve for the composition.",
+    "assumptions": [
+      "The gas mixture behaves as an ideal gas at the given conditions",
+      "The mixture contains only ethane and butane",
+      "Temperature and pressure are uniform throughout the bulb",
+      "Molecular weights: ethane = 30.07 g/mol, butane = 58.12 g/mol"
+    ],
+    "method": "I'll use the ideal gas law PV = nRT to find total moles, then solve simultaneous equations: (1) mass balance: n_ethane \u00d7 MW_ethane + n_butane \u00d7 MW_butane = total_mass, and (2) mole balance: n_ethane + n_butane = total_moles. From these I can find mole fractions.",
+    "outputs": {
+      "answer": {
+        "value": 41.28,
+        "unit": "%"
+      }
+    },
+    "confidence": 0.95,
+    "skill_notes": "For gas mixture composition problems: (1) Use ideal gas law to find total moles, (2) Set up mass balance with molecular weights, (3) Use mole balance constraint, (4) Solve the system of equations. Always verify that mole fractions sum to 1 and mass balance closes."
+  }
+}

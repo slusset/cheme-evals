@@ -31,6 +31,7 @@ RESULTS_DIR = HARNESS_ROOT / "results"
 SKILLS_DIR = HARNESS_ROOT / "agent" / "skills"
 
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+EXPERIMENT_LOG = RESULTS_DIR / "experiments.jsonl"
 
 
 def get_git_sha() -> str:
@@ -66,14 +67,19 @@ def load_fixture(path: str) -> dict:
 # Prompt assembly
 # ---------------------------------------------------------------------------
 
-def build_system_prompt(fixture: dict) -> str:
+def build_system_prompt(fixture: dict, layer: int = 1) -> str:
     """
     Assemble the system prompt from version-controlled components.
     This is the agent's 'starting state' — everything it knows.
+
+    Layer controls what the agent has access to:
+      Layer 1: No skills — pure reasoning with all constants embedded in inputs
+      Layer 2: Skills loaded — agent retrieves reference data from domain docs
+      Layer 3: No skills — agent must use tools to find data (future)
     """
-    # Load skill documents if they exist
+    # Load skill documents at Layer 2 only
     skills_context = ""
-    if SKILLS_DIR.exists():
+    if layer == 2 and SKILLS_DIR.exists():
         for skill_file in sorted(SKILLS_DIR.glob("*.md")):
             skills_context += f"\n--- Skill: {skill_file.stem} ---\n"
             skills_context += skill_file.read_text()
@@ -107,16 +113,38 @@ You MUST respond with valid JSON containing these fields:
 Respond ONLY with the JSON object. No markdown fences, no preamble."""
 
 
-def build_user_prompt(fixture: dict) -> str:
-    """Build the user message from the fixture's problem and inputs."""
+def build_user_prompt(fixture: dict, layer: int = 1) -> str:
+    """
+    Build the user message from the fixture's problem and inputs.
+
+    Layer controls which inputs are provided:
+      Layer 1: All inputs (problem_data + reference_data)
+      Layer 2: Only problem_data — reference_data must come from skills
+      Layer 3: Only problem_data — reference_data must come from tools
+    """
     problem = fixture["problem"]
     inputs = fixture["inputs"]
 
     input_lines = []
+    suppressed = []
     for name, spec in inputs.items():
+        input_class = spec.get("input_class", "problem_data")
+        if layer >= 2 and input_class == "reference_data":
+            suppressed.append(name)
+            continue
         desc = spec.get("description", "")
         input_lines.append(f"  - {name}: {spec['value']} {spec['unit']}" +
                            (f" ({desc})" if desc else ""))
+
+    # Build the suppressed data note for Layer 2/3
+    suppressed_note = ""
+    if suppressed:
+        suppressed_note = f"""
+## Note
+
+The following quantities are NOT provided — you must look them up from your reference materials or calculate them:
+{chr(10).join(f'  - {name}' for name in suppressed)}
+"""
 
     return f"""## Problem
 
@@ -129,7 +157,7 @@ def build_user_prompt(fixture: dict) -> str:
 ## Given values
 
 {chr(10).join(input_lines)}
-
+{suppressed_note}
 ## Output format
 
 Return your answers as JSON with an "outputs" field containing these keys:
@@ -218,6 +246,69 @@ def save_mock(response: dict, fixture_id: str):
 
 
 # ---------------------------------------------------------------------------
+# Unit normalization
+# ---------------------------------------------------------------------------
+
+# Known equivalent unit groups — when expected and actual units are both in
+# the same group, we convert actual → expected before comparing values.
+UNIT_CONVERSIONS = {
+    # Temperature: normalize to expected unit
+    "K": {
+        "°C": lambda v: v + 273.15,
+        "degC": lambda v: v + 273.15,
+        "C": lambda v: v + 273.15,
+        "°F": lambda v: (v - 32) * 5/9 + 273.15,
+    },
+    "°C": {
+        "K": lambda v: v - 273.15,
+        "°F": lambda v: (v - 32) * 5/9,
+    },
+    # Pressure
+    "kPa": {
+        "atm": lambda v: v * 101.325,
+        "bar": lambda v: v * 100,
+        "mmHg": lambda v: v * 0.133322,
+        "Torr": lambda v: v * 0.133322,
+        "psi": lambda v: v * 6.89476,
+    },
+    "atm": {
+        "kPa": lambda v: v / 101.325,
+        "bar": lambda v: v / 1.01325,
+        "mmHg": lambda v: v / 760,
+        "Torr": lambda v: v / 760,
+    },
+    "bar": {
+        "atm": lambda v: v * 1.01325,
+        "kPa": lambda v: v / 100,
+        "Pa": lambda v: v / 1e5,
+    },
+}
+
+
+def normalize_unit(actual_val: float, actual_unit: str, expected_unit: str) -> tuple:
+    """
+    If the agent returned a value in a different but compatible unit,
+    convert it to the expected unit. Returns (converted_val, note_or_None).
+    """
+    if actual_unit == expected_unit:
+        return actual_val, None
+
+    # Strip whitespace and normalize common variations
+    a = actual_unit.strip()
+    e = expected_unit.strip()
+    if a == e:
+        return actual_val, None
+
+    converters = UNIT_CONVERSIONS.get(e, {})
+    if a in converters:
+        converted = converters[a](actual_val)
+        return converted, f"unit converted: {actual_val} {a} → {converted:.4f} {e}"
+
+    # No conversion available — return as-is
+    return actual_val, None
+
+
+# ---------------------------------------------------------------------------
 # Scoring
 # ---------------------------------------------------------------------------
 
@@ -258,6 +349,12 @@ def score_outputs(actual: dict, expected: dict, tolerances: dict) -> dict:
             }
             continue
 
+        # Normalize units if the agent used a different but compatible unit
+        actual_unit = actual_spec.get("unit", "")
+        actual_val, unit_note = normalize_unit(actual_val, actual_unit, expected_unit)
+        if unit_note:
+            print(f"    [{key}] {unit_note}")
+
         # Get tolerance for this output
         tol = tolerances.get(key, {"type": "relative_percent", "value": 5.0})
         tol_type = tol["type"]
@@ -284,7 +381,7 @@ def score_outputs(actual: dict, expected: dict, tolerances: dict) -> dict:
         score = 1 if within_tolerance else 0
         total_score += score
 
-        results[key] = {
+        result_entry = {
             "status": "PASS" if within_tolerance else "FAIL",
             "expected": expected_val,
             "actual": actual_val,
@@ -292,6 +389,9 @@ def score_outputs(actual: dict, expected: dict, tolerances: dict) -> dict:
             "error": error_display,
             "score": score,
         }
+        if unit_note:
+            result_entry["unit_conversion"] = unit_note
+        results[key] = result_entry
 
     return {
         "output_scores": results,
@@ -372,12 +472,14 @@ def score_reasoning(response: dict, fixture: dict) -> dict:
 # Result assembly
 # ---------------------------------------------------------------------------
 
-def assemble_result(fixture: dict, response: dict, output_scores: dict, reasoning_scores: dict) -> dict:
+def assemble_result(fixture: dict, response: dict, output_scores: dict, reasoning_scores: dict,
+                    layer: int = 1) -> dict:
     """Assemble the full eval result with traceability metadata."""
     return {
-        "eval_id": f"{fixture['id']}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}",
+        "eval_id": f"{fixture['id']}-L{layer}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}",
         "fixture_id": fixture["id"],
         "fixture_version": fixture.get("version", "unknown"),
+        "layer": layer,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "git_sha": get_git_sha(),
         "agent_meta": response.get("_meta", {}),
@@ -410,8 +512,12 @@ def print_results(result: dict):
     numeric = scores["numeric"]
     reasoning = scores["reasoning"]
 
+    layer_labels = {1: "Layer 1 (base model)", 2: "Layer 2 (model + skills)", 3: "Layer 3 (model + tools)"}
+    layer = result.get("layer", 1)
+
     print("\n" + "=" * 60)
     print(f"  EVAL: {result['fixture_id']} v{result['fixture_version']}")
+    print(f"  {layer_labels.get(layer, f'Layer {layer}')}")
     print(f"  Time: {result['timestamp']}")
     print(f"  Git:  {result['git_sha']}")
     print("=" * 60)
@@ -465,16 +571,17 @@ def print_results(result: dict):
 # ---------------------------------------------------------------------------
 
 def run_fixture(fixture_path: str, use_mock: bool = False, save_mock_flag: bool = False,
-                provider_name: str = None, model: str = None):
+                provider_name: str = None, model: str = None, layer: int = 1):
     """Run a single fixture evaluation."""
     print(f"\nLoading fixture: {fixture_path}")
     fixture = load_fixture(fixture_path)
     print(f"  ID: {fixture['id']}")
+    print(f"  Layer: {layer}")
     print(f"  Problem: {fixture['problem']['statement'][:80]}...")
 
-    # Build prompts
-    system_prompt = build_system_prompt(fixture)
-    user_prompt = build_user_prompt(fixture)
+    # Build prompts (layer controls what gets included)
+    system_prompt = build_system_prompt(fixture, layer=layer)
+    user_prompt = build_user_prompt(fixture, layer=layer)
 
     # Determine mock path
     mock_path = None
@@ -497,9 +604,9 @@ def run_fixture(fixture_path: str, use_mock: bool = False, save_mock_flag: bool 
     reasoning_scores = score_reasoning(response, fixture)
 
     # Assemble and save result
-    result = assemble_result(fixture, response, output_scores, reasoning_scores)
+    result = assemble_result(fixture, response, output_scores, reasoning_scores, layer=layer)
 
-    result_filename = f"{fixture['id']}-{get_git_sha()}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.json"
+    result_filename = f"{fixture['id']}-L{layer}-{get_git_sha()}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.json"
     result_path = RESULTS_DIR / result_filename
     with open(result_path, "w") as f:
         json.dump(result, f, indent=2)
@@ -511,42 +618,180 @@ def run_fixture(fixture_path: str, use_mock: bool = False, save_mock_flag: bool 
     return result
 
 
+def log_experiment(results: list, tag: str, layer: int, provider_name: str, model: str):
+    """
+    Append a single line to experiments.jsonl for this run.
+    Each line is one experiment (one invocation of the harness).
+    This is the 'lab notebook' — append-only, never edited.
+    """
+    # Summarize per-fixture scores
+    fixture_scores = {}
+    for r in results:
+        fid = r["fixture_id"]
+        s = r["scores"]
+        fixture_scores[fid] = {
+            "numeric_pct": s["numeric"]["numeric_pct"],
+            "reasoning_pct": s["reasoning"]["reasoning_score_pct"],
+            "overall_pct": s["overall_pct"],
+            "confidence": r["agent_response"].get("confidence"),
+        }
+
+    avg_overall = sum(fs["overall_pct"] for fs in fixture_scores.values()) / len(fixture_scores) if fixture_scores else 0
+    avg_numeric = sum(fs["numeric_pct"] for fs in fixture_scores.values()) / len(fixture_scores) if fixture_scores else 0
+    avg_reasoning = sum(fs["reasoning_pct"] for fs in fixture_scores.values()) / len(fixture_scores) if fixture_scores else 0
+
+    entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "tag": tag,
+        "git_sha": get_git_sha(),
+        "layer": layer,
+        "provider": provider_name or "anthropic",
+        "model": model or results[0].get("agent_meta", {}).get("model", "unknown") if results else "unknown",
+        "n_fixtures": len(results),
+        "avg_overall_pct": round(avg_overall, 1),
+        "avg_numeric_pct": round(avg_numeric, 1),
+        "avg_reasoning_pct": round(avg_reasoning, 1),
+        "fixtures": fixture_scores,
+    }
+
+    with open(EXPERIMENT_LOG, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+    return entry
+
+
+def compare_experiments(last_n: int = 10):
+    """
+    Print a comparison table of recent experiments from the JSONL log.
+    This is the 'did it get better?' view.
+    """
+    if not EXPERIMENT_LOG.exists():
+        print("No experiments logged yet. Run some evals first!")
+        return
+
+    entries = []
+    with open(EXPERIMENT_LOG) as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                entries.append(json.loads(line))
+
+    if not entries:
+        print("No experiments logged yet.")
+        return
+
+    entries = entries[-last_n:]
+
+    # Header
+    print("\n" + "=" * 100)
+    print("  EXPERIMENT COMPARISON (last {})".format(len(entries)))
+    print("=" * 100)
+    print(f"  {'Tag':<20} {'Layer':>5} {'Model':<30} {'#Fix':>4} {'Num%':>6} {'Reas%':>6} {'Over%':>6}  {'Time'}")
+    print("  " + "-" * 95)
+
+    for e in entries:
+        tag = (e.get("tag") or "—")[:20]
+        model = (e.get("model") or "?")[:30]
+        ts = e["timestamp"][:16].replace("T", " ")
+        print(f"  {tag:<20} {e['layer']:>5} {model:<30} {e['n_fixtures']:>4} "
+              f"{e['avg_numeric_pct']:>5.1f}% {e['avg_reasoning_pct']:>5.1f}% "
+              f"{e['avg_overall_pct']:>5.1f}%  {ts}")
+
+    # Show per-fixture breakdown for the latest two (for diffing)
+    if len(entries) >= 2:
+        prev, curr = entries[-2], entries[-1]
+        all_fixtures = sorted(set(list(prev.get("fixtures", {}).keys()) + list(curr.get("fixtures", {}).keys())))
+        if all_fixtures:
+            print(f"\n  DIFF: '{prev.get('tag', '?')}' → '{curr.get('tag', '?')}'")
+            print(f"  {'Fixture':<30} {'Before':>8} {'After':>8} {'Delta':>8}")
+            print("  " + "-" * 56)
+            for fid in all_fixtures:
+                before = prev.get("fixtures", {}).get(fid, {}).get("overall_pct")
+                after = curr.get("fixtures", {}).get(fid, {}).get("overall_pct")
+                b_str = f"{before:.1f}%" if before is not None else "—"
+                a_str = f"{after:.1f}%" if after is not None else "—"
+                if before is not None and after is not None:
+                    delta = after - before
+                    d_str = f"{'+' if delta >= 0 else ''}{delta:.1f}%"
+                else:
+                    d_str = "—"
+                print(f"  {fid:<30} {b_str:>8} {a_str:>8} {d_str:>8}")
+
+    print("=" * 100)
+
+
 def main():
     import argparse
     available_providers = ", ".join(sorted(PROVIDERS))
     parser = argparse.ArgumentParser(description="ChemE Agent Eval Runner")
+
+    # Mutually exclusive modes
     parser.add_argument("--fixture", type=str, help="Path to a single fixture JSON file")
     parser.add_argument("--all", action="store_true", help="Run all fixtures in fixtures/")
+    parser.add_argument("--compare", action="store_true", help="Compare recent experiment runs (no eval executed)")
+
+    # Run options
     parser.add_argument("--mock", action="store_true", help="Use mocked responses instead of live API")
     parser.add_argument("--save-mock", action="store_true", help="Save live responses as mocks for future replay")
     parser.add_argument("--provider", type=str, default=None,
                         help=f"LLM provider ({available_providers}). Default: anthropic")
     parser.add_argument("--model", type=str, default=None,
                         help="Model name override (default: provider's default model)")
+    parser.add_argument("--layer", type=int, default=1, choices=[1, 2, 3],
+                        help="Eval layer: 1=all inputs/no skills, 2=problem inputs+skills, 3=problem inputs+tools (default: 1)")
+    parser.add_argument("--tag", type=str, default=None,
+                        help="Label for this experiment run (e.g. 'baseline', 'added-skills', 'sonnet-vs-opus')")
+    parser.add_argument("--curated-only", action="store_true",
+                        help="Only run fixtures with version >= 1.0.0 (skip drafts)")
     args = parser.parse_args()
 
+    # Compare mode — just print the table and exit
+    if args.compare:
+        compare_experiments()
+        return
+
     if not args.fixture and not args.all:
-        parser.error("one of --fixture or --all is required")
+        parser.error("one of --fixture, --all, or --compare is required")
 
     run_kwargs = dict(
         use_mock=args.mock,
         save_mock_flag=args.save_mock,
         provider_name=args.provider,
         model=args.model,
+        layer=args.layer,
     )
 
+    results = []
     if args.fixture:
-        run_fixture(args.fixture, **run_kwargs)
+        r = run_fixture(args.fixture, **run_kwargs)
+        results.append(r)
     else:
         fixtures = sorted(FIXTURES_DIR.glob("*.json"))
+        # Skip non-fixture files
+        fixtures = [f for f in fixtures if f.name != "fixture-schema.json"]
+
+        # Filter to curated-only if requested
+        if args.curated_only:
+            curated = []
+            for f in fixtures:
+                with open(f) as fh:
+                    ver = json.load(fh).get("version", "0.0.0")
+                if not ver.startswith("0."):
+                    curated.append(f)
+                else:
+                    print(f"  [skip] {f.name} (draft v{ver})")
+            fixtures = curated
         if not fixtures:
             print("No fixtures found in fixtures/")
             sys.exit(1)
         print(f"Running {len(fixtures)} fixtures...")
-        results = []
         for fp in fixtures:
-            r = run_fixture(str(fp), **run_kwargs)
-            results.append(r)
+            try:
+                r = run_fixture(str(fp), **run_kwargs)
+                results.append(r)
+            except Exception as e:
+                print(f"  ERROR on {fp.name}: {e}")
+
         # Summary
         print("\n\n" + "=" * 60)
         print("  SUITE SUMMARY")
@@ -555,6 +800,13 @@ def main():
             print(f"  {r['fixture_id']}: {r['scores']['overall_pct']}%")
         avg = sum(r["scores"]["overall_pct"] for r in results) / len(results)
         print(f"\n  Average: {avg:.1f}%")
+
+    # Log the experiment
+    if results:
+        entry = log_experiment(results, tag=args.tag, layer=args.layer,
+                               provider_name=args.provider, model=args.model)
+        print(f"\n  Experiment logged: tag='{entry['tag']}' avg={entry['avg_overall_pct']}%")
+        print(f"  View history: python run_eval.py --compare")
 
 
 if __name__ == "__main__":

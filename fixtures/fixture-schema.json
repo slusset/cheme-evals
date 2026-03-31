@@ -60,7 +60,13 @@
         "properties": {
           "value": { "description": "Numeric value or array of values" },
           "unit": { "type": "string" },
-          "description": { "type": "string" }
+          "description": { "type": "string" },
+          "input_class": {
+            "type": "string",
+            "enum": ["problem_data", "reference_data"],
+            "default": "problem_data",
+            "description": "Classification for layer-based eval. 'problem_data' is always provided. 'reference_data' (constants, parameters the agent could look up) is only provided at Layer 1; at Layer 2/3 the agent must retrieve these from skills or tools."
+          }
         }
       }
     },

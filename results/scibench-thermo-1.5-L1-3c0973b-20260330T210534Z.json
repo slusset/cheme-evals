@@ -1,0 +1,58 @@
+{
+  "eval_id": "scibench-thermo-1.5-L1-20260330T210534Z",
+  "fixture_id": "scibench-thermo-1.5",
+  "fixture_version": "0.1.0",
+  "layer": 1,
+  "timestamp": "2026-03-30T21:05:34.771771+00:00",
+  "git_sha": "3c0973b",
+  "agent_meta": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0,
+    "elapsed_seconds": 9.06,
+    "input_tokens": 463,
+    "output_tokens": 509
+  },
+  "scores": {
+    "numeric": {
+      "output_scores": {
+        "answer": {
+          "status": "PASS",
+          "expected": 32.0,
+          "actual": 32.1,
+          "unit": "%",
+          "error": "0.31% (tolerance: \u00b15.0%)",
+          "score": 1
+        }
+      },
+      "numeric_score": 1,
+      "numeric_possible": 1,
+      "numeric_pct": 100.0
+    },
+    "reasoning": {
+      "must_include": [],
+      "must_not_include": [],
+      "reasoning_checkpoints": [],
+      "reasoning_score_pct": 0
+    },
+    "overall_pct": 60.0
+  },
+  "agent_response": {
+    "reasoning": "This is a gas mixture problem where I need to find the mole percent of butane. I'll use the ideal gas law and mass balance equations. Let me define variables: n_C2H6 = moles of ethane, n_C4H10 = moles of butane. I have two equations: (1) PV = n_total*RT for total moles, and (2) mass balance using molecular weights.",
+    "assumptions": [
+      "The gas mixture behaves as an ideal gas",
+      "Temperature and pressure are uniform throughout the bulb",
+      "No gas leakage from the bulb",
+      "Molecular weights: C2H6 = 30.07 g/mol, C4H10 = 58.12 g/mol"
+    ],
+    "method": "I'll use the ideal gas law to find total moles, then set up a system of equations using mass balance. Let x be the mole fraction of butane, then (1-x) is the mole fraction of ethane. The average molecular weight equals total mass divided by total moles.",
+    "outputs": {
+      "answer": {
+        "value": 32.1,
+        "unit": "%"
+      }
+    },
+    "confidence": 0.95,
+    "skill_notes": "For gas mixture problems, always calculate total moles first using PV=nRT, then use mass balance with molecular weights to find composition. The key insight is that average molecular weight = total mass / total moles, which allows solving for mole fractions."
+  }
+}

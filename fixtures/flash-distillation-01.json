@@ -1,16 +1,17 @@
 {
   "id": "flash-distillation-01",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "tags": ["separation", "vle", "flash", "binary-mixture", "introductory"],
   "source": {
     "type": "textbook",
-    "reference": "Standard VLE flash calculation - benzene/toluene binary system at 1 atm. Commonly found in Smith/Van Ness/Abbott 'Introduction to Chemical Engineering Thermodynamics' and Seader/Henley 'Separation Process Principles'. Values verified via Raoult's law with Antoine equation.",
-    "verified_by": "manual_calculation"
+    "reference": "Standard VLE flash calculation - benzene/toluene binary system at 1 atm. Commonly found in Smith/Van Ness/Abbott 'Introduction to Chemical Engineering Thermodynamics' and Seader/Henley 'Separation Process Principles'.",
+    "verified_by": "bisection_solver",
+    "verification_note": "v1.1.0: Expected values verified by bisection on Rachford-Rice equation using Antoine constants from Perry's (log10, mmHg, °C). Benzene: A=6.90565, B=1211.033, C=220.790. Toluene: A=6.95464, B=1344.800, C=219.482. RR residual < 1e-12, material balance closes exactly, Σx=Σy=1.000000."
   },
 
   "problem": {
     "statement": "An equimolar feed of benzene and toluene (50 mol% each) at 100 kmol/h is fed to a flash drum operating at 1 atm (101.325 kPa). The feed is 25% vaporized (vapor fraction = 0.25). Determine the compositions of the liquid and vapor leaving the separator, and estimate the drum temperature.",
-    "task": "Calculate: (1) mole fraction of benzene in the liquid product, (2) mole fraction of benzene in the vapor product, (3) flash drum temperature, (4) liquid and vapor flow rates.",
+    "task": "Calculate: (1) mole fraction of benzene in the liquid product, (2) mole fraction of benzene in the vapor product, (3) flash drum temperature in K, (4) liquid and vapor flow rates in kmol/h.",
     "difficulty": "introductory",
     "topics": [
       "vapor-liquid equilibrium",
@@ -46,24 +47,36 @@
       "value": 0.25,
       "unit": "dimensionless",
       "description": "Fraction of feed that is vaporized (V/F)"
+    },
+    "antoine_benzene": {
+      "value": [6.90565, 1211.033, 220.790],
+      "unit": "log10_mmHg_degC",
+      "description": "Antoine coefficients [A, B, C] for benzene: log10(P/mmHg) = A - B/(C + T/°C)",
+      "input_class": "reference_data"
+    },
+    "antoine_toluene": {
+      "value": [6.95464, 1344.800, 219.482],
+      "unit": "log10_mmHg_degC",
+      "description": "Antoine coefficients [A, B, C] for toluene: log10(P/mmHg) = A - B/(C + T/°C)",
+      "input_class": "reference_data"
     }
   },
 
   "expected_outputs": {
     "liquid_benzene_mole_fraction": {
-      "value": 0.438,
+      "value": 0.445,
       "unit": "mol_fraction",
       "description": "Mole fraction of benzene in liquid product (x_benzene)"
     },
     "vapor_benzene_mole_fraction": {
-      "value": 0.686,
+      "value": 0.665,
       "unit": "mol_fraction",
       "description": "Mole fraction of benzene in vapor product (y_benzene)"
     },
     "flash_temperature": {
-      "value": 368.0,
+      "value": 366.9,
       "unit": "K",
-      "description": "Temperature in the flash drum (approximate, depends on Antoine constants used)"
+      "description": "Flash drum temperature, verified by Rachford-Rice bisection with Perry's Antoine constants"
     },
     "liquid_flow_rate": {
       "value": 75,

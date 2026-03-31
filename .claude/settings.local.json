@@ -6,7 +6,10 @@
       "mcp__plugin_atlassian_atlassian__searchJiraIssuesUsingJql",
       "mcp__plugin_atlassian_atlassian__getAccessibleAtlassianResources",
       "mcp__plugin_atlassian_atlassian__createJiraIssue",
-      "WebFetch(domain:lamalab-org.github.io)"
+      "WebFetch(domain:lamalab-org.github.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:arxiv.org)",
+      "WebFetch(domain:dwsim.fossee.in)"
     ]
   }
 }

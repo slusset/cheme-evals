@@ -33,12 +33,16 @@ A fixture has five parts:
 ## Running an eval
 
 ```bash
-# Against live Claude API
-python scripts/run_eval.py --fixture fixtures/flash-distillation-01.json
+# Baseline: Layer 1, Sonnet, no skills
+python run_eval.py --all --layer 1 --tag "baseline-L1-sonnet"
 
-# Against mocked responses (deterministic)
-python scripts/run_eval.py --fixture fixtures/flash-distillation-01.json --mock
+# Add skills: Layer 2, same model
+python run_eval.py --all --layer 2 --tag "with-skills-L2-sonnet"
 
-# Full suite
-python scripts/run_eval.py --all
+# Different model: Layer 1, Opus
+python run_eval.py --all --layer 1 --provider anthropic --model claude-opus-4-0-20250514 --tag "baseline-L1-opus"
+
+# See what changed
+python run_eval.py --compare
+
 ```

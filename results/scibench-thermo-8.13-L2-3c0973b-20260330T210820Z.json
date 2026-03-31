@@ -1,0 +1,47 @@
+{
+  "eval_id": "scibench-thermo-8.13-L2-20260330T210820Z",
+  "fixture_id": "scibench-thermo-8.13",
+  "fixture_version": "0.1.0",
+  "layer": 2,
+  "timestamp": "2026-03-30T21:08:20.375700+00:00",
+  "git_sha": "3c0973b",
+  "agent_meta": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0,
+    "elapsed_seconds": 11.24,
+    "input_tokens": 3847,
+    "output_tokens": 618
+  },
+  "scores": {
+    "numeric": {
+      "output_scores": {
+        "answer": {
+          "status": "MISSING",
+          "expected": 1.95,
+          "actual": null,
+          "score": 0,
+          "note": "Agent did not produce this output"
+        }
+      },
+      "numeric_score": 0,
+      "numeric_possible": 1,
+      "numeric_pct": 0.0
+    },
+    "reasoning": {
+      "must_include": [],
+      "must_not_include": [],
+      "reasoning_checkpoints": [],
+      "reasoning_score_pct": 0
+    },
+    "overall_pct": 0.0
+  },
+  "agent_response": {
+    "reasoning": "",
+    "assumptions": [],
+    "method": "",
+    "outputs": {},
+    "confidence": null,
+    "skill_notes": ""
+  }
+}

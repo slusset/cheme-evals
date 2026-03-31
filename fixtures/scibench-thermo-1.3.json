@@ -35,17 +35,20 @@
     "vdw_param_a": {
       "value": 1.355,
       "unit": "bar dm^6 mol^-2",
-      "description": "van der Waals attraction parameter for Ar"
+      "description": "van der Waals attraction parameter for Ar",
+      "input_class": "reference_data"
     },
     "vdw_param_b": {
       "value": 0.0320,
       "unit": "dm^3/mol",
-      "description": "van der Waals volume exclusion parameter for Ar"
+      "description": "van der Waals volume exclusion parameter for Ar",
+      "input_class": "reference_data"
     },
     "gas_constant_R": {
       "value": 0.083145,
       "unit": "dm^3 bar mol^-1 K^-1",
-      "description": "Gas constant in units compatible with the given parameters"
+      "description": "Gas constant in units compatible with the given parameters",
+      "input_class": "reference_data"
     }
   },
 

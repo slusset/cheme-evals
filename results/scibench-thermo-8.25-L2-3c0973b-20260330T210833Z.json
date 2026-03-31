@@ -1,0 +1,58 @@
+{
+  "eval_id": "scibench-thermo-8.25-L2-20260330T210832Z",
+  "fixture_id": "scibench-thermo-8.25",
+  "fixture_version": "0.1.0",
+  "layer": 2,
+  "timestamp": "2026-03-30T21:08:32.971053+00:00",
+  "git_sha": "3c0973b",
+  "agent_meta": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0,
+    "elapsed_seconds": 12.55,
+    "input_tokens": 3877,
+    "output_tokens": 725
+  },
+  "scores": {
+    "numeric": {
+      "output_scores": {
+        "answer": {
+          "status": "PASS",
+          "expected": 344.0,
+          "actual": 344.4,
+          "unit": "K",
+          "error": "0.12% (tolerance: \u00b15.0%)",
+          "score": 1
+        }
+      },
+      "numeric_score": 1,
+      "numeric_possible": 1,
+      "numeric_pct": 100.0
+    },
+    "reasoning": {
+      "must_include": [],
+      "must_not_include": [],
+      "reasoning_checkpoints": [],
+      "reasoning_score_pct": 0
+    },
+    "overall_pct": 60.0
+  },
+  "agent_response": {
+    "reasoning": "This is a Clausius-Clapeyron equation problem. I need to find the boiling point of water at a different pressure using the enthalpy of vaporization. The Clausius-Clapeyron equation relates vapor pressure to temperature: ln(P2/P1) = -(\u0394Hvap/R)(1/T2 - 1/T1). At the boiling point, the vapor pressure equals the external pressure. I know: normal boiling point T1 = 373.12 K at P1 = 1 atm = 760 Torr, pressure on Mt. Everest P2 = 253 Torr, and \u0394Hvap = 40.656 kJ/mol. I need to solve for T2.",
+    "assumptions": [
+      "The enthalpy of vaporization remains constant over the temperature range",
+      "Water behaves ideally in the vapor phase",
+      "The Clausius-Clapeyron equation is applicable for this pressure and temperature range",
+      "Normal atmospheric pressure is 760 Torr"
+    ],
+    "method": "I will use the Clausius-Clapeyron equation: ln(P2/P1) = -(\u0394Hvap/R)(1/T2 - 1/T1). Rearranging to solve for T2: 1/T2 = 1/T1 + (R/\u0394Hvap)ln(P2/P1). I'll use R = 8.314 J/(mol\u00b7K) and convert \u0394Hvap to J/mol for unit consistency.",
+    "outputs": {
+      "answer": {
+        "value": 344.4,
+        "unit": "K"
+      }
+    },
+    "confidence": 0.95,
+    "skill_notes": "For Clausius-Clapeyron problems, always ensure unit consistency between R and \u0394Hvap. The equation assumes constant \u0394Hvap, which is reasonable for moderate temperature ranges. Lower pressure means lower boiling point, which makes physical sense. Always double-check the sign in the rearranged equation - it's easy to make algebra errors."
+  }
+}
