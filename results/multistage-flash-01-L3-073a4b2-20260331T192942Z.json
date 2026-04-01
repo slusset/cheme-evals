@@ -1,0 +1,271 @@
+{
+  "eval_id": "multistage-flash-01-L3-20260331T192942Z",
+  "fixture_id": "multistage-flash-01",
+  "fixture_version": "0.1.0",
+  "layer": 3,
+  "timestamp": "2026-03-31T19:29:42.813216+00:00",
+  "git_sha": "073a4b2",
+  "agent_meta": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0,
+    "elapsed_seconds": 113.25,
+    "input_tokens": 57040,
+    "output_tokens": 10180,
+    "tool_turns": 9
+  },
+  "scores": {
+    "numeric": {
+      "output_scores": {
+        "stage1_vapor_fraction": {
+          "status": "PASS",
+          "expected": 0.4288,
+          "actual": 0.428752,
+          "unit": "dimensionless",
+          "error": "0.0000 (tolerance: \u00b10.02)",
+          "score": 1
+        },
+        "stage1_liquid_benzene": {
+          "status": "PASS",
+          "expected": 0.509,
+          "actual": 0.50906,
+          "unit": "mol_fraction",
+          "error": "0.0001 (tolerance: \u00b10.02)",
+          "score": 1
+        },
+        "stage1_vapor_benzene": {
+          "status": "PASS",
+          "expected": 0.721,
+          "actual": 0.721164,
+          "unit": "mol_fraction",
+          "error": "0.0002 (tolerance: \u00b10.02)",
+          "score": 1
+        },
+        "stage1_liquid_flow": {
+          "status": "PASS",
+          "expected": 57.12,
+          "actual": 57.1248,
+          "unit": "kmol/h",
+          "error": "0.01% (tolerance: \u00b12.0%)",
+          "score": 1
+        },
+        "stage1_vapor_flow": {
+          "status": "PASS",
+          "expected": 42.88,
+          "actual": 42.8752,
+          "unit": "kmol/h",
+          "error": "0.01% (tolerance: \u00b12.0%)",
+          "score": 1
+        },
+        "stage2_vapor_fraction": {
+          "status": "PASS",
+          "expected": 0.2783,
+          "actual": 0.278352,
+          "unit": "dimensionless",
+          "error": "0.0001 (tolerance: \u00b10.03)",
+          "score": 1
+        },
+        "stage2_liquid_benzene": {
+          "status": "PASS",
+          "expected": 0.444,
+          "actual": 0.444023,
+          "unit": "mol_fraction",
+          "error": "0.0000 (tolerance: \u00b10.03)",
+          "score": 1
+        },
+        "stage2_vapor_benzene": {
+          "status": "PASS",
+          "expected": 0.678,
+          "actual": 0.677675,
+          "unit": "mol_fraction",
+          "error": "0.0003 (tolerance: \u00b10.03)",
+          "score": 1
+        },
+        "stage2_liquid_flow": {
+          "status": "PASS",
+          "expected": 41.22,
+          "actual": 41.224,
+          "unit": "kmol/h",
+          "error": "0.01% (tolerance: \u00b13.0%)",
+          "score": 1
+        },
+        "stage2_vapor_flow": {
+          "status": "PASS",
+          "expected": 15.9,
+          "actual": 15.9008,
+          "unit": "kmol/h",
+          "error": "0.01% (tolerance: \u00b13.0%)",
+          "score": 1
+        },
+        "overall_benzene_recovery": {
+          "status": "PASS",
+          "expected": 69.5,
+          "actual": 69.4927,
+          "unit": "percent",
+          "error": "0.0073 (tolerance: \u00b12.0)",
+          "score": 1
+        }
+      },
+      "numeric_score": 11,
+      "numeric_possible": 11,
+      "numeric_pct": 100.0
+    },
+    "reasoning": {
+      "must_include": [
+        {
+          "requirement": "Identify this as a multi-stage flash separation requiring sequential calculation",
+          "found": true
+        },
+        {
+          "requirement": "Use Raoult's law or appropriate VLE correlation at each stage",
+          "found": true
+        },
+        {
+          "requirement": "Recognize that Stage 2 feed composition equals Stage 1 liquid composition",
+          "found": true
+        },
+        {
+          "requirement": "Apply material balance at each stage and overall",
+          "found": true
+        },
+        {
+          "requirement": "State or use Antoine equation for vapor pressures",
+          "found": true
+        }
+      ],
+      "must_not_include": [
+        {
+          "requirement": "Treat the two stages as independent problems with the same feed",
+          "violated": false
+        },
+        {
+          "requirement": "Use the original feed composition as Stage 2 feed composition",
+          "violated": true
+        },
+        {
+          "requirement": "Ignore the pressure change between stages",
+          "violated": false
+        },
+        {
+          "requirement": "Assume the same V/F ratio applies to both stages",
+          "violated": false
+        }
+      ],
+      "reasoning_checkpoints": [
+        {
+          "checkpoint": "Identifies problem as a multi-stage (sequential) flash requiring chained calculations",
+          "weight": 0.1,
+          "found": true
+        },
+        {
+          "checkpoint": "Correctly solves Stage 1 flash: calculates K-values, applies Rachford-Rice, finds V/F",
+          "weight": 0.15,
+          "found": false
+        },
+        {
+          "checkpoint": "Uses Stage 1 liquid composition as Stage 2 feed composition (not original feed)",
+          "weight": 0.15,
+          "found": true
+        },
+        {
+          "checkpoint": "Recalculates K-values at Stage 2 conditions (different T and P)",
+          "weight": 0.1,
+          "found": true
+        },
+        {
+          "checkpoint": "Correctly solves Stage 2 flash with propagated intermediate results",
+          "weight": 0.15,
+          "found": false
+        },
+        {
+          "checkpoint": "Computes overall benzene recovery from both vapor streams",
+          "weight": 0.1,
+          "found": true
+        },
+        {
+          "checkpoint": "Verifies overall material balance: F = L2 + V1 + V2 and component balance closes",
+          "weight": 0.1,
+          "found": true
+        },
+        {
+          "checkpoint": "Manages numerical precision \u2014 does not truncate intermediate results prematurely",
+          "weight": 0.05,
+          "found": false
+        },
+        {
+          "checkpoint": "States assumptions explicitly (ideal mixture, steady state, etc.)",
+          "weight": 0.05,
+          "found": false
+        },
+        {
+          "checkpoint": "Organizes solution as a clear sequential computation (not a single monolithic equation)",
+          "weight": 0.05,
+          "found": false
+        }
+      ],
+      "reasoning_score_pct": 55.0,
+      "judge_method": "keyword"
+    },
+    "overall_pct": 82.0
+  },
+  "agent_response": {
+    "reasoning": "I solved this two-stage flash separation problem using the Rachford-Rice equation for each stage. First, I calculated vapor pressures using the Antoine equation for benzene and toluene at both operating conditions. For each stage, I determined K-values (Ki = Psat,i/Ptotal), then solved the Rachford-Rice equation to find vapor fractions. Using these vapor fractions, I calculated liquid and vapor compositions and flow rates. Finally, I computed the overall benzene recovery by summing benzene in both vapor products and dividing by benzene in the feed.",
+    "assumptions": [
+      "Ideal vapor-liquid equilibrium (Raoult's law applies)",
+      "Antoine equation accurately represents vapor pressures in the given temperature ranges",
+      "No heat effects or pressure drops between stages",
+      "Steady-state operation",
+      "Perfect mixing in each flash drum",
+      "No entrainment between phases"
+    ],
+    "method": "Used Rachford-Rice equation for flash calculations with Antoine equation for vapor pressures. The Antoine equation form used is log10(Psat) = A - B/(T + C) where Psat is in mmHg and T is in \u00b0C. K-values calculated as Ki = Psat,i/Ptotal assuming ideal behavior. Solved nonlinear Rachford-Rice equations numerically using scipy.optimize.fsolve.",
+    "outputs": {
+      "stage1_vapor_fraction": {
+        "value": 0.428752,
+        "unit": "dimensionless"
+      },
+      "stage1_liquid_benzene": {
+        "value": 0.50906,
+        "unit": "mol_fraction"
+      },
+      "stage1_vapor_benzene": {
+        "value": 0.721164,
+        "unit": "mol_fraction"
+      },
+      "stage1_liquid_flow": {
+        "value": 57.1248,
+        "unit": "kmol/h"
+      },
+      "stage1_vapor_flow": {
+        "value": 42.8752,
+        "unit": "kmol/h"
+      },
+      "stage2_vapor_fraction": {
+        "value": 0.278352,
+        "unit": "dimensionless"
+      },
+      "stage2_liquid_benzene": {
+        "value": 0.444023,
+        "unit": "mol_fraction"
+      },
+      "stage2_vapor_benzene": {
+        "value": 0.677675,
+        "unit": "mol_fraction"
+      },
+      "stage2_liquid_flow": {
+        "value": 41.224,
+        "unit": "kmol/h"
+      },
+      "stage2_vapor_flow": {
+        "value": 15.9008,
+        "unit": "kmol/h"
+      },
+      "overall_benzene_recovery": {
+        "value": 69.4927,
+        "unit": "percent"
+      }
+    },
+    "confidence": 0.95,
+    "skill_notes": "For multi-stage flash problems: (1) Use Antoine equation with proper units conversion, (2) Solve Rachford-Rice equation numerically for each stage, (3) Feed to second stage is liquid from first stage, (4) Always verify with material balances, (5) Recovery calculation requires tracking component flows through all streams. The reduced pressure in Stage 2 increases K-values, allowing more vaporization of the remaining liquid."
+  }
+}

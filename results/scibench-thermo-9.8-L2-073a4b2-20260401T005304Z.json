@@ -1,0 +1,158 @@
+{
+  "run_id": "566748a2-f248-4bdd-ade6-efaf7b5cedf2",
+  "eval_id": "scibench-thermo-9.8-L2-20260401T005304Z",
+  "fixture_id": "scibench-thermo-9.8",
+  "fixture_version": "1.0.0",
+  "layer": 2,
+  "timestamp": "2026-04-01T00:53:04.192277+00:00",
+  "git_sha": "073a4b2",
+  "agent_meta": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0,
+    "elapsed_seconds": 11.93,
+    "input_tokens": 4044,
+    "output_tokens": 777,
+    "run_id": "566748a2-f248-4bdd-ade6-efaf7b5cedf2",
+    "artifacts": []
+  },
+  "scores": {
+    "numeric": {
+      "output_scores": {
+        "partial_pressure_benzene": {
+          "status": "PASS",
+          "expected": 33.6,
+          "actual": 33.6,
+          "unit": "Torr",
+          "error": "0.0000 (tolerance: \u00b10.5)",
+          "score": 1
+        },
+        "partial_pressure_hexane": {
+          "status": "PASS",
+          "expected": 136.08,
+          "actual": 136.08,
+          "unit": "Torr",
+          "error": "0.0000 (tolerance: \u00b10.5)",
+          "score": 1
+        },
+        "total_vapor_pressure": {
+          "status": "PASS",
+          "expected": 169.68,
+          "actual": 169.68,
+          "unit": "Torr",
+          "error": "0.0000 (tolerance: \u00b11.0)",
+          "score": 1
+        },
+        "vapor_mole_fraction_benzene": {
+          "status": "PASS",
+          "expected": 0.198,
+          "actual": 0.198,
+          "unit": "mol_fraction",
+          "error": "0.0000 (tolerance: \u00b10.005)",
+          "score": 1
+        }
+      },
+      "numeric_score": 4,
+      "numeric_possible": 4,
+      "numeric_pct": 100.0
+    },
+    "reasoning": {
+      "must_include": [
+        {
+          "requirement": "Apply Raoult's law to calculate partial pressures",
+          "found": true
+        },
+        {
+          "requirement": "Sum partial pressures for total vapor pressure",
+          "found": true
+        },
+        {
+          "requirement": "State or use the ideal solution assumption",
+          "found": true
+        }
+      ],
+      "must_not_include": [
+        {
+          "requirement": "Use activity coefficients for an ideal solution",
+          "violated": false
+        },
+        {
+          "requirement": "Confuse liquid mole fraction with vapor mole fraction",
+          "violated": true
+        }
+      ],
+      "reasoning_checkpoints": [
+        {
+          "checkpoint": "Identifies this as an ideal solution problem where Raoult's law applies directly",
+          "weight": 0.2,
+          "found": true
+        },
+        {
+          "checkpoint": "Calculates both partial pressures using P_i = x_i * P_i_sat",
+          "weight": 0.25,
+          "found": true
+        },
+        {
+          "checkpoint": "Sums partial pressures to get total vapor pressure",
+          "weight": 0.2,
+          "found": true
+        },
+        {
+          "checkpoint": "Calculates vapor phase composition using y_i = P_i / P_total",
+          "weight": 0.2,
+          "found": true
+        },
+        {
+          "checkpoint": "States the ideal solution assumption and why it is appropriate",
+          "weight": 0.15,
+          "found": true
+        }
+      ],
+      "reasoning_score_pct": 100.0,
+      "judge_method": "heuristic",
+      "score_reliability": "rough_heuristic",
+      "score_notes": "Keyword matching across the response is a rough heuristic only. Use LLM judge scoring for higher-confidence reasoning evaluation."
+    },
+    "tool_proposals": {
+      "proposal_score": 0,
+      "proposal_possible": 0,
+      "proposal_score_pct": 0,
+      "mode": "not_scored",
+      "notes": "No tool proposal expectation defined for this fixture."
+    },
+    "overall_pct": 100.0
+  },
+  "agent_response": {
+    "reasoning": "This is a classic Raoult's law problem for an ideal binary solution. Since benzene and hexane are both nonpolar hydrocarbons with similar molecular structures, the assumption of ideal solution behavior is reasonable. I'll apply Raoult's law to calculate partial pressures, then sum them for total pressure, and finally calculate the vapor phase composition.",
+    "assumptions": [
+      "The solution behaves ideally (Raoult's law applies)",
+      "Both components are in vapor-liquid equilibrium",
+      "The temperature is constant at 303 K",
+      "The given vapor pressures are accurate at 303 K",
+      "No other components are present in the system"
+    ],
+    "method": "Raoult's Law for ideal solutions. For each component i: P_i = x_i * P_i_sat, where P_i is the partial pressure, x_i is the liquid mole fraction, and P_i_sat is the pure component vapor pressure. Total pressure is the sum of partial pressures. Vapor mole fraction is calculated using y_i = P_i / P_total.",
+    "outputs": {
+      "partial_pressure_benzene": {
+        "value": 33.6,
+        "unit": "Torr"
+      },
+      "partial_pressure_hexane": {
+        "value": 136.08,
+        "unit": "Torr"
+      },
+      "total_vapor_pressure": {
+        "value": 169.68,
+        "unit": "Torr"
+      },
+      "vapor_mole_fraction_benzene": {
+        "value": 0.198,
+        "unit": "mol_fraction"
+      }
+    },
+    "confidence": 0.95,
+    "skill_notes": "For ideal binary solutions, Raoult's law provides straightforward calculations. Key steps: (1) Apply P_i = x_i * P_i_sat for each component, (2) Sum partial pressures for total pressure, (3) Calculate vapor composition using y_i = P_i / P_total. Always verify that mole fractions sum to 1.0. Note that the more volatile component (hexane, higher vapor pressure) will be enriched in the vapor phase compared to the liquid phase."
+  },
+  "tool_proposals": [],
+  "artifacts": []
+}

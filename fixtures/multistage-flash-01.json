@@ -1,0 +1,276 @@
+{
+  "id": "multistage-flash-01",
+  "version": "0.1.0",
+  "tags": ["separation", "vle", "flash", "binary-mixture", "multi-stage", "intermediate"],
+  "source": {
+    "type": "manual_calculation",
+    "reference": "Two-stage flash cascade for benzene/toluene. Stage 1 isothermal flash at high pressure, liquid product re-flashed at reduced pressure. Based on standard VLE separation principles from Seader/Henley 'Separation Process Principles'.",
+    "verified_by": "bisection_solver",
+    "verification_note": "v0.1.0: Expected values verified by Brent's method on Rachford-Rice equation using Antoine constants from Perry's (log10, mmHg, °C). Both stages verified independently: RR residual < 1e-12, material balance closes exactly across all stages, overall benzene balance: 30.921 + 10.775 + 18.304 = 60.000 kmol/h."
+  },
+
+  "problem": {
+    "statement": "A benzene/toluene feed (60 mol% benzene, 40 mol% toluene) at 100 kmol/h enters a two-stage flash separation cascade.\n\nStage 1: The feed is flashed at T = 365 K and P = 101.325 kPa (1 atm). The vapor product (V1) is collected.\n\nStage 2: The liquid product from Stage 1 is sent to a second flash drum operating at T = 350 K and P = 60 kPa. The vapor product (V2) is collected, and the liquid product (L2) is the bottoms stream.\n\nDetermine the compositions and flow rates at each stage, and the overall recovery of benzene in the combined vapor products (V1 + V2).",
+    "task": "Calculate: (1) Stage 1 vapor fraction, liquid and vapor benzene mole fractions, and flow rates. (2) Stage 2 vapor fraction, liquid and vapor benzene mole fractions, and flow rates. (3) Overall benzene recovery in the combined vapor products as a percentage of benzene in the feed.",
+    "difficulty": "intermediate",
+    "topics": [
+      "vapor-liquid equilibrium",
+      "Raoult's law",
+      "flash calculation",
+      "Antoine equation",
+      "multi-stage separation",
+      "material balance",
+      "process chaining"
+    ]
+  },
+
+  "inputs": {
+    "feed_flow_rate": {
+      "value": 100,
+      "unit": "kmol/h",
+      "description": "Total molar flow rate of fresh feed"
+    },
+    "feed_composition_benzene": {
+      "value": 0.60,
+      "unit": "mol_fraction",
+      "description": "Mole fraction of benzene in feed"
+    },
+    "feed_composition_toluene": {
+      "value": 0.40,
+      "unit": "mol_fraction",
+      "description": "Mole fraction of toluene in feed"
+    },
+    "stage1_temperature": {
+      "value": 365,
+      "unit": "K",
+      "description": "Stage 1 flash drum temperature"
+    },
+    "stage1_pressure": {
+      "value": 101.325,
+      "unit": "kPa",
+      "description": "Stage 1 flash drum pressure (1 atm)"
+    },
+    "stage2_temperature": {
+      "value": 350,
+      "unit": "K",
+      "description": "Stage 2 flash drum temperature"
+    },
+    "stage2_pressure": {
+      "value": 60,
+      "unit": "kPa",
+      "description": "Stage 2 flash drum pressure (reduced pressure)"
+    },
+    "antoine_benzene": {
+      "value": [6.90565, 1211.033, 220.790],
+      "unit": "log10_mmHg_degC",
+      "description": "Antoine coefficients [A, B, C] for benzene: log10(P/mmHg) = A - B/(C + T/°C)",
+      "input_class": "reference_data"
+    },
+    "antoine_toluene": {
+      "value": [6.95464, 1344.800, 219.482],
+      "unit": "log10_mmHg_degC",
+      "description": "Antoine coefficients [A, B, C] for toluene: log10(P/mmHg) = A - B/(C + T/°C)",
+      "input_class": "reference_data"
+    }
+  },
+
+  "expected_outputs": {
+    "stage1_vapor_fraction": {
+      "value": 0.4288,
+      "unit": "dimensionless",
+      "description": "Fraction of feed vaporized in Stage 1 (V1/F)"
+    },
+    "stage1_liquid_benzene": {
+      "value": 0.509,
+      "unit": "mol_fraction",
+      "description": "Mole fraction of benzene in Stage 1 liquid"
+    },
+    "stage1_vapor_benzene": {
+      "value": 0.721,
+      "unit": "mol_fraction",
+      "description": "Mole fraction of benzene in Stage 1 vapor"
+    },
+    "stage1_liquid_flow": {
+      "value": 57.12,
+      "unit": "kmol/h",
+      "description": "Stage 1 liquid product flow rate"
+    },
+    "stage1_vapor_flow": {
+      "value": 42.88,
+      "unit": "kmol/h",
+      "description": "Stage 1 vapor product flow rate"
+    },
+    "stage2_vapor_fraction": {
+      "value": 0.2783,
+      "unit": "dimensionless",
+      "description": "Fraction of Stage 2 feed (= L1) vaporized"
+    },
+    "stage2_liquid_benzene": {
+      "value": 0.444,
+      "unit": "mol_fraction",
+      "description": "Mole fraction of benzene in Stage 2 liquid (final bottoms)"
+    },
+    "stage2_vapor_benzene": {
+      "value": 0.678,
+      "unit": "mol_fraction",
+      "description": "Mole fraction of benzene in Stage 2 vapor"
+    },
+    "stage2_liquid_flow": {
+      "value": 41.22,
+      "unit": "kmol/h",
+      "description": "Stage 2 liquid product flow rate (final bottoms)"
+    },
+    "stage2_vapor_flow": {
+      "value": 15.90,
+      "unit": "kmol/h",
+      "description": "Stage 2 vapor product flow rate"
+    },
+    "overall_benzene_recovery": {
+      "value": 69.5,
+      "unit": "percent",
+      "description": "Percentage of feed benzene recovered in combined vapor products (V1 + V2)"
+    }
+  },
+
+  "acceptance_criteria": {
+    "tolerances": {
+      "stage1_vapor_fraction": {
+        "type": "absolute",
+        "value": 0.02,
+        "_comment": "V/F within 0.02"
+      },
+      "stage1_liquid_benzene": {
+        "type": "absolute",
+        "value": 0.02,
+        "_comment": "Mole fraction within 0.02"
+      },
+      "stage1_vapor_benzene": {
+        "type": "absolute",
+        "value": 0.02,
+        "_comment": "Mole fraction within 0.02"
+      },
+      "stage1_liquid_flow": {
+        "type": "relative_percent",
+        "value": 2.0,
+        "_comment": "Within 2% — propagates from V/F tolerance"
+      },
+      "stage1_vapor_flow": {
+        "type": "relative_percent",
+        "value": 2.0,
+        "_comment": "Within 2%"
+      },
+      "stage2_vapor_fraction": {
+        "type": "absolute",
+        "value": 0.03,
+        "_comment": "Wider tolerance — errors compound from Stage 1"
+      },
+      "stage2_liquid_benzene": {
+        "type": "absolute",
+        "value": 0.03,
+        "_comment": "Wider tolerance — errors compound from Stage 1"
+      },
+      "stage2_vapor_benzene": {
+        "type": "absolute",
+        "value": 0.03,
+        "_comment": "Wider tolerance — errors compound from Stage 1"
+      },
+      "stage2_liquid_flow": {
+        "type": "relative_percent",
+        "value": 3.0,
+        "_comment": "Within 3% — compound error from Stage 1 + Stage 2"
+      },
+      "stage2_vapor_flow": {
+        "type": "relative_percent",
+        "value": 3.0,
+        "_comment": "Within 3%"
+      },
+      "overall_benzene_recovery": {
+        "type": "absolute",
+        "value": 2.0,
+        "_comment": "Within 2 percentage points — integrates errors across both stages"
+      }
+    },
+    "must_include": [
+      "Identify this as a multi-stage flash separation requiring sequential calculation",
+      "Use Raoult's law or appropriate VLE correlation at each stage",
+      "Recognize that Stage 2 feed composition equals Stage 1 liquid composition",
+      "Apply material balance at each stage and overall",
+      "State or use Antoine equation for vapor pressures"
+    ],
+    "must_not_include": [
+      "Treat the two stages as independent problems with the same feed",
+      "Use the original feed composition as Stage 2 feed composition",
+      "Ignore the pressure change between stages",
+      "Assume the same V/F ratio applies to both stages"
+    ]
+  },
+
+  "domain_context": {
+    "recommended_tools": [
+      "python_execute_chained_flash",
+      "manual_Raoult_law_with_Antoine"
+    ],
+    "recommended_thermo_model": "Raoult's law (appropriate for benzene/toluene — nearly ideal system at moderate pressures)",
+    "key_assumptions": [
+      "Ideal liquid mixture (benzene and toluene are chemically similar)",
+      "Ideal vapor phase (pressures below 2 atm)",
+      "Steady-state operation at both stages",
+      "Thermal equilibrium at each flash drum",
+      "No heat exchange between stages — each drum operates at its specified temperature"
+    ],
+    "common_mistakes": [
+      "Feeding the original feed composition into Stage 2 instead of the Stage 1 liquid composition",
+      "Not recalculating K-values at the Stage 2 temperature and pressure",
+      "Accumulating rounding errors by truncating Stage 1 results before using them in Stage 2",
+      "Using wrong Antoine constant units (check ln vs log10, Pa vs mmHg, K vs °C)",
+      "Forgetting that V/F is unknown at both stages (T and P are given — this is a T,P-flash)",
+      "Not verifying overall material balance across both stages"
+    ]
+  },
+
+  "agent_evaluation": {
+    "reasoning_checkpoints": [
+      {
+        "checkpoint": "Identifies problem as a multi-stage (sequential) flash requiring chained calculations",
+        "weight": 0.10
+      },
+      {
+        "checkpoint": "Correctly solves Stage 1 flash: calculates K-values, applies Rachford-Rice, finds V/F",
+        "weight": 0.15
+      },
+      {
+        "checkpoint": "Uses Stage 1 liquid composition as Stage 2 feed composition (not original feed)",
+        "weight": 0.15
+      },
+      {
+        "checkpoint": "Recalculates K-values at Stage 2 conditions (different T and P)",
+        "weight": 0.10
+      },
+      {
+        "checkpoint": "Correctly solves Stage 2 flash with propagated intermediate results",
+        "weight": 0.15
+      },
+      {
+        "checkpoint": "Computes overall benzene recovery from both vapor streams",
+        "weight": 0.10
+      },
+      {
+        "checkpoint": "Verifies overall material balance: F = L2 + V1 + V2 and component balance closes",
+        "weight": 0.10
+      },
+      {
+        "checkpoint": "Manages numerical precision — does not truncate intermediate results prematurely",
+        "weight": 0.05
+      },
+      {
+        "checkpoint": "States assumptions explicitly (ideal mixture, steady state, etc.)",
+        "weight": 0.05
+      },
+      {
+        "checkpoint": "Organizes solution as a clear sequential computation (not a single monolithic equation)",
+        "weight": 0.05
+      }
+    ],
+    "skill_document_expected": true
+  }
+}

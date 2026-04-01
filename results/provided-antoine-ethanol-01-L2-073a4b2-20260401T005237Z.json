@@ -1,0 +1,124 @@
+{
+  "run_id": "42b7f29d-6199-4d15-8710-e92b66081b94",
+  "eval_id": "provided-antoine-ethanol-01-L2-20260401T005237Z",
+  "fixture_id": "provided-antoine-ethanol-01",
+  "fixture_version": "1.0.0",
+  "layer": 2,
+  "timestamp": "2026-04-01T00:52:37.363187+00:00",
+  "git_sha": "073a4b2",
+  "agent_meta": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0,
+    "elapsed_seconds": 8.43,
+    "input_tokens": 3903,
+    "output_tokens": 498,
+    "run_id": "42b7f29d-6199-4d15-8710-e92b66081b94",
+    "artifacts": []
+  },
+  "scores": {
+    "numeric": {
+      "output_scores": {
+        "boiling_point": {
+          "status": "PASS",
+          "expected": 351.47,
+          "actual": 351.39,
+          "unit": "K",
+          "error": "0.0800 (tolerance: \u00b11.0)",
+          "score": 1
+        }
+      },
+      "numeric_score": 1,
+      "numeric_possible": 1,
+      "numeric_pct": 100.0
+    },
+    "reasoning": {
+      "must_include": [
+        {
+          "requirement": "Use the provided Antoine coefficients",
+          "found": true
+        },
+        {
+          "requirement": "Convert 1 atm to 760 mmHg or equivalent consistent units",
+          "found": true
+        },
+        {
+          "requirement": "Solve the Antoine equation for temperature",
+          "found": true
+        }
+      ],
+      "must_not_include": [
+        {
+          "requirement": "Claim external property lookup is required",
+          "violated": false
+        },
+        {
+          "requirement": "Ignore the provided Antoine coefficients",
+          "violated": false
+        },
+        {
+          "requirement": "Assume the boiling point without calculation",
+          "violated": false
+        }
+      ],
+      "reasoning_checkpoints": [
+        {
+          "checkpoint": "Recognizes that the provided data is sufficient and no external lookup is required",
+          "weight": 0.3,
+          "found": false
+        },
+        {
+          "checkpoint": "Uses the Antoine equation with the provided coefficients",
+          "weight": 0.4,
+          "found": true
+        },
+        {
+          "checkpoint": "Performs the pressure unit conversion consistently",
+          "weight": 0.2,
+          "found": false
+        },
+        {
+          "checkpoint": "Reports the final answer in K",
+          "weight": 0.1,
+          "found": false
+        }
+      ],
+      "reasoning_score_pct": 40.0,
+      "judge_method": "heuristic",
+      "score_reliability": "rough_heuristic",
+      "score_notes": "Keyword matching across the response is a rough heuristic only. Use LLM judge scoring for higher-confidence reasoning evaluation."
+    },
+    "tool_proposals": {
+      "proposal_score": 1,
+      "proposal_possible": 1,
+      "proposal_score_pct": 100.0,
+      "mode": "unnecessary",
+      "allowed_tool_names": [],
+      "allowed_priorities": [],
+      "matched_tool_name": null,
+      "matched_priority": null,
+      "notes": "No proposal made, as expected."
+    },
+    "overall_pct": 79.0
+  },
+  "agent_response": {
+    "reasoning": "To find the normal boiling point of ethanol, I need to find the temperature at which the vapor pressure equals 1 atm (101.325 kPa). I'll use the Antoine equation with the given coefficients. First, I need to convert the pressure to mmHg since the Antoine equation gives pressure in mmHg. Then I'll solve for temperature and convert to Kelvin.",
+    "assumptions": [
+      "The Antoine equation is valid at the boiling point temperature",
+      "The given Antoine coefficients are accurate for ethanol",
+      "The system is at equilibrium between liquid and vapor phases",
+      "Atmospheric pressure is exactly 1 atm = 101.325 kPa = 760 mmHg"
+    ],
+    "method": "Using the Antoine equation in the form log10(P_sat) = A - B/(C + T), where P_sat is in mmHg and T is in \u00b0C. I'll solve for T when P_sat = 760 mmHg (1 atm), then convert to Kelvin.",
+    "outputs": {
+      "boiling_point": {
+        "value": 351.39,
+        "unit": "K"
+      }
+    },
+    "confidence": 0.95,
+    "skill_notes": "When using Antoine equation, always verify the units carefully - this form uses mmHg for pressure and \u00b0C for temperature. The normal boiling point is defined as the temperature where vapor pressure equals 1 atm. Remember to convert final temperature to the requested units (K in this case)."
+  },
+  "tool_proposals": [],
+  "artifacts": []
+}

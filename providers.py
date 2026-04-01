@@ -104,6 +104,93 @@ PYTHON_EXECUTE_TOOL = {
 }
 
 
+PROPOSE_TOOL_TOOL = {
+    "name": "propose_tool",
+    "description": (
+        "Propose a tool you need but don't currently have. Call this BEFORE "
+        "attempting a workaround when you recognize the problem requires a "
+        "capability beyond generic Python — e.g., a thermodynamic data lookup, "
+        "a specialized equation-of-state solver, a steam table, or a phase "
+        "equilibrium package. Your proposal is recorded for evaluation. The "
+        "tool will NOT be available in this session — you must still solve the "
+        "problem with python_execute — but your proposal informs what tools "
+        "should exist for future runs."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "tool_name": {
+                "type": "string",
+                "description": (
+                    "Short snake_case name for the proposed tool, e.g. "
+                    "'steam_table_lookup', 'nrtl_activity_coefficients', "
+                    "'experiment_data_retrieval'"
+                ),
+            },
+            "reason": {
+                "type": "string",
+                "description": (
+                    "Why you need this tool. What gap in your current "
+                    "capabilities does it fill? What would go wrong or be "
+                    "unreliable without it?"
+                ),
+            },
+            "interface": {
+                "type": "object",
+                "description": "The proposed tool's contract: inputs and outputs.",
+                "properties": {
+                    "inputs": {
+                        "type": "array",
+                        "description": "Parameters the tool should accept.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "type": {"type": "string"},
+                                "unit": {"type": "string"},
+                                "description": {"type": "string"},
+                            },
+                            "required": ["name", "type"],
+                        },
+                    },
+                    "outputs": {
+                        "type": "array",
+                        "description": "What the tool should return.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "type": {"type": "string"},
+                                "unit": {"type": "string"},
+                                "description": {"type": "string"},
+                            },
+                            "required": ["name", "type"],
+                        },
+                    },
+                },
+            },
+            "implementation_hint": {
+                "type": "string",
+                "description": (
+                    "Optional: how you think this tool could be implemented "
+                    "(data source, algorithm, library, etc.)."
+                ),
+            },
+            "priority": {
+                "type": "string",
+                "enum": ["blocking", "would_improve", "nice_to_have"],
+                "description": (
+                    "'blocking' = cannot solve without it, "
+                    "'would_improve' = can work around but answer quality suffers, "
+                    "'nice_to_have' = convenience/efficiency gain only."
+                ),
+            },
+        },
+        "required": ["tool_name", "reason", "priority"],
+    },
+}
+
+
 def _execute_python_sandbox(code: str, timeout: int = 30) -> dict:
     """Run Python code in a subprocess with minimal environment."""
     safe_env = {
@@ -138,8 +225,12 @@ def call_anthropic_tool_loop(system: str, user: str, model: str,
     """
     Multi-turn tool-use loop for Layer 3.
 
-    The model can call python_execute to run iterative calculations,
-    then incorporate the results into its final JSON answer.
+    The model can:
+      - call python_execute to run iterative calculations
+      - call propose_tool to declare a tool it wishes it had
+
+    Tool proposals are collected and returned in the result so the eval
+    harness can record and analyze them.
     """
     headers = {
         "x-api-key": api_key,
@@ -150,6 +241,7 @@ def call_anthropic_tool_loop(system: str, user: str, model: str,
     total_input = 0
     total_output = 0
     tool_turns = 0
+    tool_proposals = []   # Collected propose_tool calls
 
     for turn in range(max_turns):
         body = {
@@ -158,7 +250,7 @@ def call_anthropic_tool_loop(system: str, user: str, model: str,
             "temperature": temperature,
             "system": system,
             "messages": messages,
-            "tools": [PYTHON_EXECUTE_TOOL],
+            "tools": [PYTHON_EXECUTE_TOOL, PROPOSE_TOOL_TOOL],
         }
         resp = _post_json(
             url="https://api.anthropic.com/v1/messages",
@@ -179,24 +271,31 @@ def call_anthropic_tool_loop(system: str, user: str, model: str,
                 block["text"] for block in resp["content"]
                 if block["type"] == "text"
             )
-            return {
+            result = {
                 "text": text,
                 "model": resp.get("model", model),
                 "input_tokens": total_input,
                 "output_tokens": total_output,
                 "tool_turns": tool_turns,
             }
+            if tool_proposals:
+                result["tool_proposals"] = tool_proposals
+            return result
 
         if resp["stop_reason"] == "tool_use":
             tool_results = []
             for block in resp["content"]:
-                if block["type"] == "tool_use":
-                    tool_turns += 1
+                if block["type"] != "tool_use":
+                    continue
+
+                tool_turns += 1
+                tool_name = block["name"]
+
+                if tool_name == "python_execute":
                     code = block["input"]["code"]
-                    print(f"    [tool] Turn {tool_turns}: executing python ({len(code)} chars)...")
+                    print(f"    [tool] Turn {tool_turns}: python_execute ({len(code)} chars)...")
                     result = _execute_python_sandbox(code)
 
-                    # Format output for the model
                     output = result["stdout"]
                     if result["stderr"]:
                         output += f"\n[stderr]\n{result['stderr']}"
@@ -207,6 +306,38 @@ def call_anthropic_tool_loop(system: str, user: str, model: str,
                         "type": "tool_result",
                         "tool_use_id": block["id"],
                         "content": output or "(no output)",
+                    })
+
+                elif tool_name == "propose_tool":
+                    proposal = block["input"]
+                    proposal["_turn"] = tool_turns
+                    tool_proposals.append(proposal)
+
+                    name = proposal.get("tool_name", "unnamed")
+                    priority = proposal.get("priority", "?")
+                    print(f"    [tool] Turn {tool_turns}: propose_tool → "
+                          f"{name!r} (priority: {priority})")
+
+                    # Acknowledge but don't provide the tool
+                    ack = (
+                        f"Proposal recorded: {name!r} (priority: {priority}).\n"
+                        f"This tool is NOT available in the current session. "
+                        f"Continue solving the problem with python_execute. "
+                        f"Your proposal will be evaluated after this run."
+                    )
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block["id"],
+                        "content": ack,
+                    })
+
+                else:
+                    # Unknown tool — shouldn't happen, but handle gracefully
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block["id"],
+                        "content": f"Unknown tool: {tool_name}",
+                        "is_error": True,
                     })
 
             messages.append({"role": "user", "content": tool_results})
@@ -226,13 +357,16 @@ def call_anthropic_tool_loop(system: str, user: str, model: str,
             if text:
                 break
     text += "\n\n[WARNING: max tool turns reached, answer may be incomplete]"
-    return {
+    result = {
         "text": text,
         "model": model,
         "input_tokens": total_input,
         "output_tokens": total_output,
         "tool_turns": tool_turns,
     }
+    if tool_proposals:
+        result["tool_proposals"] = tool_proposals
+    return result
 
 
 # ---------------------------------------------------------------------------

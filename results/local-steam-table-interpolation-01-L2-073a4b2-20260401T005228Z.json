@@ -1,0 +1,124 @@
+{
+  "run_id": "3ca703c8-a25b-413d-a68b-03ebfdaa7f12",
+  "eval_id": "local-steam-table-interpolation-01-L2-20260401T005228Z",
+  "fixture_id": "local-steam-table-interpolation-01",
+  "fixture_version": "1.0.0",
+  "layer": 2,
+  "timestamp": "2026-04-01T00:52:28.890189+00:00",
+  "git_sha": "073a4b2",
+  "agent_meta": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0,
+    "elapsed_seconds": 9.13,
+    "input_tokens": 3999,
+    "output_tokens": 560,
+    "run_id": "3ca703c8-a25b-413d-a68b-03ebfdaa7f12",
+    "artifacts": []
+  },
+  "scores": {
+    "numeric": {
+      "output_scores": {
+        "specific_enthalpy": {
+          "status": "PASS",
+          "expected": 2937.0,
+          "actual": 2937.0,
+          "unit": "kJ/kg",
+          "error": "0.0000 (tolerance: \u00b12.0)",
+          "score": 1
+        }
+      },
+      "numeric_score": 1,
+      "numeric_possible": 1,
+      "numeric_pct": 100.0
+    },
+    "reasoning": {
+      "must_include": [
+        {
+          "requirement": "Use the provided local table excerpt",
+          "found": true
+        },
+        {
+          "requirement": "Apply linear interpolation between the two tabulated temperatures",
+          "found": true
+        },
+        {
+          "requirement": "Recognize that an external steam-table tool is optional because the needed local data is already present",
+          "found": false
+        }
+      ],
+      "must_not_include": [
+        {
+          "requirement": "Claim a steam-table lookup is strictly required",
+          "violated": false
+        },
+        {
+          "requirement": "Ignore the provided local table values",
+          "violated": false
+        },
+        {
+          "requirement": "Use saturated steam values instead of the superheated table excerpt",
+          "violated": false
+        }
+      ],
+      "reasoning_checkpoints": [
+        {
+          "checkpoint": "Uses the provided local table excerpt instead of claiming the data is unavailable",
+          "weight": 0.35,
+          "found": false
+        },
+        {
+          "checkpoint": "Sets up and performs linear interpolation correctly",
+          "weight": 0.45,
+          "found": true
+        },
+        {
+          "checkpoint": "Recognizes that a steam-table tool would be convenient but is not required here",
+          "weight": 0.2,
+          "found": false
+        }
+      ],
+      "reasoning_score_pct": 45.0,
+      "judge_method": "heuristic",
+      "score_reliability": "rough_heuristic",
+      "score_notes": "Keyword matching across the response is a rough heuristic only. Use LLM judge scoring for higher-confidence reasoning evaluation."
+    },
+    "tool_proposals": {
+      "proposal_score": 1,
+      "proposal_possible": 1,
+      "proposal_score_pct": 100.0,
+      "mode": "optional",
+      "allowed_tool_names": [
+        "steam_table_lookup"
+      ],
+      "allowed_priorities": [
+        "blocking",
+        "nice_to_have",
+        "would_improve"
+      ],
+      "matched_tool_name": null,
+      "matched_priority": null,
+      "notes": "No proposal made; acceptable because proposal is optional."
+    },
+    "overall_pct": 80.8
+  },
+  "agent_response": {
+    "reasoning": "This is a straightforward linear interpolation problem using steam table data. I have enthalpy values at two temperatures (200\u00b0C and 300\u00b0C) at the same pressure (1000 kPa), and I need to find the enthalpy at an intermediate temperature (250\u00b0C). Linear interpolation assumes that the property varies linearly between the two known points.",
+    "assumptions": [
+      "Enthalpy varies linearly between 200\u00b0C and 300\u00b0C at constant pressure",
+      "The steam table data provided is accurate",
+      "Linear interpolation is sufficiently accurate for this temperature range"
+    ],
+    "method": "Linear interpolation between two known data points. The formula is: h = h1 + (h2 - h1) \u00d7 (T - T1) / (T2 - T1), where h is the interpolated enthalpy, T is the target temperature, and subscripts 1 and 2 refer to the lower and upper bounds respectively.",
+    "outputs": {
+      "specific_enthalpy": {
+        "value": 2937.0,
+        "unit": "kJ/kg"
+      }
+    },
+    "confidence": 0.95,
+    "skill_notes": "Linear interpolation is a fundamental skill for working with steam tables and other property tables. The key is to identify the correct bounding values and apply the interpolation formula correctly. Since 250\u00b0C is exactly halfway between 200\u00b0C and 300\u00b0C, the interpolated enthalpy should be exactly halfway between the corresponding enthalpy values, which provides a good check on the calculation."
+  },
+  "tool_proposals": [],
+  "artifacts": []
+}

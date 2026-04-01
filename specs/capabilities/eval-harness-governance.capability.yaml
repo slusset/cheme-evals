@@ -1,0 +1,38 @@
+id: eval-harness-governance
+type: cross-cutting
+description: >
+  Traceable eval harness behavior for run execution, tool proposal capture,
+  artifact lifecycle governance, and replayable validation.
+
+personas:
+  - researcher
+  - builder
+
+journeys:
+  - run-an-eval
+  - inspect-a-trace
+  - review-a-proposed-tool
+  - promote-an-artifact
+
+stories:
+  - As a researcher, I want every run to produce a stable trace so I can replay and inspect agent behavior.
+  - As a builder, I want tool proposals recorded as first-class artifacts so I can validate and promote them deliberately.
+  - As a researcher, I want fixtures to encode when proposals are required, optional, or unnecessary so proposal quality can be scored.
+  - As a builder, I want lifecycle transitions to be explicit so the system does not silently self-modify.
+
+models:
+  - run
+  - trace_event
+  - artifact
+  - archive_record
+
+features:
+  - specs/features/run-traceability.feature
+  - specs/features/tool-proposal-governance.feature
+  - specs/features/mock-transcripts.feature
+
+contracts:
+  - run result JSON contains run_id, scores, tool proposals, and artifacts
+  - trace JSONL is append-only and sequence-ordered per run
+  - artifact JSON records status, provenance, and validation metadata
+  - archive JSONL catalogs runs, artifacts, and artifact transitions

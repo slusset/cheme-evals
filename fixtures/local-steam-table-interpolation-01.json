@@ -1,0 +1,105 @@
+{
+  "id": "local-steam-table-interpolation-01",
+  "version": "1.0.0",
+  "tags": ["thermodynamics", "steam-tables", "optional-tool", "interpolation", "intermediate"],
+  "source": {
+    "type": "manual_calculation",
+    "reference": "Superheated steam enthalpy interpolation using a local table excerpt at 1 MPa.",
+    "verified_by": "linear_interpolation"
+  },
+  "problem": {
+    "statement": "Superheated steam at 1.0 MPa is required at 250 °C. A local excerpt from a superheated steam table is included below with enthalpy values at the same pressure for neighboring temperatures. Estimate the specific enthalpy at 250 °C by linear interpolation.",
+    "task": "Calculate the specific enthalpy of steam at 1.0 MPa and 250 °C in kJ/kg.",
+    "difficulty": "intermediate",
+    "topics": [
+      "steam tables",
+      "interpolation",
+      "superheated steam"
+    ]
+  },
+  "inputs": {
+    "pressure": {
+      "value": 1000,
+      "unit": "kPa",
+      "description": "Steam pressure"
+    },
+    "target_temperature": {
+      "value": 250,
+      "unit": "degC",
+      "description": "Target steam temperature"
+    },
+    "local_superheated_table_excerpt": {
+      "value": {
+        "pressure_kPa": 1000,
+        "T1_degC": 200,
+        "h1_kJ_per_kg": 2828.0,
+        "T2_degC": 300,
+        "h2_kJ_per_kg": 3046.0
+      },
+      "unit": "steam_table_excerpt",
+      "description": "Local superheated steam table excerpt at 1.0 MPa"
+    }
+  },
+  "expected_outputs": {
+    "specific_enthalpy": {
+      "value": 2937.0,
+      "unit": "kJ/kg",
+      "description": "Estimated enthalpy from linear interpolation between 200 °C and 300 °C"
+    }
+  },
+  "acceptance_criteria": {
+    "tolerances": {
+      "specific_enthalpy": {
+        "type": "absolute",
+        "value": 2.0
+      }
+    },
+    "must_include": [
+      "Use the provided local table excerpt",
+      "Apply linear interpolation between the two tabulated temperatures",
+      "Recognize that an external steam-table tool is optional because the needed local data is already present"
+    ],
+    "must_not_include": [
+      "Claim a steam-table lookup is strictly required",
+      "Ignore the provided local table values",
+      "Use saturated steam values instead of the superheated table excerpt"
+    ]
+  },
+  "domain_context": {
+    "recommended_tools": [
+      "steam_table_lookup",
+      "manual_interpolation"
+    ],
+    "recommended_thermo_model": "Tabular interpolation from provided steam table data",
+    "key_assumptions": [
+      "Linear interpolation over the local temperature interval is acceptable for this exercise"
+    ],
+    "common_mistakes": [
+      "Using saturated rather than superheated properties",
+      "Requesting an external lookup despite the necessary local table excerpt being provided",
+      "Interpolating on the wrong variable"
+    ]
+  },
+  "agent_evaluation": {
+    "tool_proposal_expectation": {
+      "mode": "optional",
+      "allowed_tool_names": ["steam_table_lookup"],
+      "allowed_priorities": ["would_improve", "nice_to_have", "blocking"]
+    },
+    "reasoning_checkpoints": [
+      {
+        "checkpoint": "Uses the provided local table excerpt instead of claiming the data is unavailable",
+        "weight": 0.35
+      },
+      {
+        "checkpoint": "Sets up and performs linear interpolation correctly",
+        "weight": 0.45
+      },
+      {
+        "checkpoint": "Recognizes that a steam-table tool would be convenient but is not required here",
+        "weight": 0.20
+      }
+    ],
+    "skill_document_expected": false
+  }
+}

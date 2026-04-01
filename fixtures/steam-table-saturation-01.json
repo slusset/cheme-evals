@@ -1,0 +1,132 @@
+{
+  "id": "steam-table-saturation-01",
+  "version": "1.0.0",
+  "tags": ["thermodynamics", "steam-tables", "capability-gap", "property-lookup", "intermediate"],
+  "source": {
+    "type": "manual_calculation",
+    "reference": "Saturated water property lookup at 200 kPa based on standard steam tables.",
+    "verified_by": "steam_table_reference"
+  },
+  "problem": {
+    "statement": "A boiler drum operates at a saturation pressure of 200 kPa. Determine the saturation temperature of water at this pressure, the saturated liquid enthalpy, the saturated vapor enthalpy, and the latent heat of vaporization.",
+    "task": "Calculate: (1) saturation temperature in K, (2) saturated liquid enthalpy in kJ/kg, (3) saturated vapor enthalpy in kJ/kg, and (4) latent heat of vaporization in kJ/kg.",
+    "difficulty": "intermediate",
+    "topics": [
+      "steam tables",
+      "phase equilibrium",
+      "water properties",
+      "property lookup"
+    ]
+  },
+  "inputs": {
+    "pressure": {
+      "value": 200,
+      "unit": "kPa",
+      "description": "Saturation pressure of the boiler drum"
+    },
+    "steam_table_saturation_water_200kpa": {
+      "value": {
+        "temperature_K": 393.36,
+        "hf_kJ_per_kg": 504.7,
+        "hg_kJ_per_kg": 2706.3,
+        "hfg_kJ_per_kg": 2201.6
+      },
+      "unit": "steam_table_record",
+      "description": "Saturated water properties at 200 kPa from a standard steam table",
+      "input_class": "reference_data"
+    }
+  },
+  "expected_outputs": {
+    "saturation_temperature": {
+      "value": 393.36,
+      "unit": "K",
+      "description": "Saturation temperature of water at 200 kPa"
+    },
+    "saturated_liquid_enthalpy": {
+      "value": 504.7,
+      "unit": "kJ/kg",
+      "description": "Saturated liquid enthalpy at 200 kPa"
+    },
+    "saturated_vapor_enthalpy": {
+      "value": 2706.3,
+      "unit": "kJ/kg",
+      "description": "Saturated vapor enthalpy at 200 kPa"
+    },
+    "latent_heat_vaporization": {
+      "value": 2201.6,
+      "unit": "kJ/kg",
+      "description": "Latent heat of vaporization at 200 kPa"
+    }
+  },
+  "acceptance_criteria": {
+    "tolerances": {
+      "saturation_temperature": {
+        "type": "absolute",
+        "value": 0.5
+      },
+      "saturated_liquid_enthalpy": {
+        "type": "absolute",
+        "value": 2.0
+      },
+      "saturated_vapor_enthalpy": {
+        "type": "absolute",
+        "value": 3.0
+      },
+      "latent_heat_vaporization": {
+        "type": "absolute",
+        "value": 3.0
+      }
+    },
+    "must_include": [
+      "Recognize that this requires saturated water property data",
+      "Use steam tables or an equivalent property database",
+      "Compute latent heat as hg minus hf if not read directly"
+    ],
+    "must_not_include": [
+      "Pretend the steam-table values are known without lookup or provided data",
+      "Use ideal-gas heat capacity formulas instead of saturated property data",
+      "Claim the values are derivable from pressure alone without property data"
+    ]
+  },
+  "domain_context": {
+    "recommended_tools": [
+      "steam_table_lookup"
+    ],
+    "recommended_thermo_model": "Steam table / water property database",
+    "key_assumptions": [
+      "Water is at saturation at the stated pressure",
+      "Tabulated saturated water properties are the authoritative source"
+    ],
+    "common_mistakes": [
+      "Using ideal gas correlations instead of steam tables",
+      "Confusing saturated liquid and saturated vapor enthalpy",
+      "Reporting latent heat without checking hfg = hg - hf"
+    ]
+  },
+  "agent_evaluation": {
+    "tool_proposal_expectation": {
+      "mode": "required",
+      "allowed_tool_names": ["steam_table_lookup"],
+      "allowed_priorities": ["blocking"]
+    },
+    "reasoning_checkpoints": [
+      {
+        "checkpoint": "Identifies this as a steam-table property lookup problem",
+        "weight": 0.25
+      },
+      {
+        "checkpoint": "Recognizes that saturated water data is required and not derivable from simple algebra alone",
+        "weight": 0.25
+      },
+      {
+        "checkpoint": "Uses a steam table or proposes an appropriate steam property lookup tool when the data is withheld",
+        "weight": 0.30
+      },
+      {
+        "checkpoint": "Checks latent heat by subtracting saturated liquid enthalpy from saturated vapor enthalpy",
+        "weight": 0.20
+      }
+    ],
+    "skill_document_expected": false
+  }
+}

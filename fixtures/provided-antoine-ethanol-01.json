@@ -1,0 +1,96 @@
+{
+  "id": "provided-antoine-ethanol-01",
+  "version": "1.0.0",
+  "tags": ["thermodynamics", "antoine", "no-external-tool-needed", "introductory"],
+  "source": {
+    "type": "manual_calculation",
+    "reference": "Boiling point of ethanol at 1 atm using provided Antoine coefficients.",
+    "verified_by": "closed_form_algebra"
+  },
+  "problem": {
+    "statement": "Pure ethanol is at equilibrium with its vapor at 1 atm (101.325 kPa). Using the Antoine constants provided in the problem statement, estimate the normal boiling point of ethanol.",
+    "task": "Calculate the boiling point of ethanol in K.",
+    "difficulty": "introductory",
+    "topics": [
+      "Antoine equation",
+      "vapor pressure",
+      "boiling point"
+    ]
+  },
+  "inputs": {
+    "pressure": {
+      "value": 101.325,
+      "unit": "kPa",
+      "description": "System pressure"
+    },
+    "antoine_ethanol": {
+      "value": [8.20417, 1642.89, 230.300],
+      "unit": "log10_mmHg_degC",
+      "description": "Antoine coefficients for ethanol, log10(P/mmHg) = A - B/(C + T/°C)"
+    }
+  },
+  "expected_outputs": {
+    "boiling_point": {
+      "value": 351.47,
+      "unit": "K",
+      "description": "Normal boiling point of ethanol"
+    }
+  },
+  "acceptance_criteria": {
+    "tolerances": {
+      "boiling_point": {
+        "type": "absolute",
+        "value": 1.0
+      }
+    },
+    "must_include": [
+      "Use the provided Antoine coefficients",
+      "Convert 1 atm to 760 mmHg or equivalent consistent units",
+      "Solve the Antoine equation for temperature"
+    ],
+    "must_not_include": [
+      "Claim external property lookup is required",
+      "Ignore the provided Antoine coefficients",
+      "Assume the boiling point without calculation"
+    ]
+  },
+  "domain_context": {
+    "recommended_tools": [
+      "manual_calculation",
+      "python_execute"
+    ],
+    "recommended_thermo_model": "Antoine equation",
+    "key_assumptions": [
+      "Pure-component vapor pressure is represented adequately by the provided Antoine constants"
+    ],
+    "common_mistakes": [
+      "Mixing kPa and mmHg inconsistently",
+      "Using K directly in an Antoine equation parameterized for °C",
+      "Requesting a lookup tool despite all required data being present"
+    ]
+  },
+  "agent_evaluation": {
+    "tool_proposal_expectation": {
+      "mode": "unnecessary"
+    },
+    "reasoning_checkpoints": [
+      {
+        "checkpoint": "Recognizes that the provided data is sufficient and no external lookup is required",
+        "weight": 0.30
+      },
+      {
+        "checkpoint": "Uses the Antoine equation with the provided coefficients",
+        "weight": 0.40
+      },
+      {
+        "checkpoint": "Performs the pressure unit conversion consistently",
+        "weight": 0.20
+      },
+      {
+        "checkpoint": "Reports the final answer in K",
+        "weight": 0.10
+      }
+    ],
+    "skill_document_expected": false
+  }
+}

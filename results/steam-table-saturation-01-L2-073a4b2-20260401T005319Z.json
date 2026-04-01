@@ -1,0 +1,164 @@
+{
+  "run_id": "af92f4af-3e54-4f57-a38d-f501acb1fda2",
+  "eval_id": "steam-table-saturation-01-L2-20260401T005319Z",
+  "fixture_id": "steam-table-saturation-01",
+  "fixture_version": "1.0.0",
+  "layer": 2,
+  "timestamp": "2026-04-01T00:53:19.017420+00:00",
+  "git_sha": "073a4b2",
+  "agent_meta": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0,
+    "elapsed_seconds": 14.78,
+    "input_tokens": 3978,
+    "output_tokens": 823,
+    "run_id": "af92f4af-3e54-4f57-a38d-f501acb1fda2",
+    "artifacts": []
+  },
+  "scores": {
+    "numeric": {
+      "output_scores": {
+        "saturation_temperature": {
+          "status": "PASS",
+          "expected": 393.36,
+          "actual": 393.25,
+          "unit": "K",
+          "error": "0.1100 (tolerance: \u00b10.5)",
+          "score": 1
+        },
+        "saturated_liquid_enthalpy": {
+          "status": "PASS",
+          "expected": 504.7,
+          "actual": 503.7,
+          "unit": "kJ/kg",
+          "error": "1.0000 (tolerance: \u00b12.0)",
+          "score": 1
+        },
+        "saturated_vapor_enthalpy": {
+          "status": "PASS",
+          "expected": 2706.3,
+          "actual": 2706.6,
+          "unit": "kJ/kg",
+          "error": "0.3000 (tolerance: \u00b13.0)",
+          "score": 1
+        },
+        "latent_heat_vaporization": {
+          "status": "PASS",
+          "expected": 2201.6,
+          "actual": 2202.9,
+          "unit": "kJ/kg",
+          "error": "1.3000 (tolerance: \u00b13.0)",
+          "score": 1
+        }
+      },
+      "numeric_score": 4,
+      "numeric_possible": 4,
+      "numeric_pct": 100.0
+    },
+    "reasoning": {
+      "must_include": [
+        {
+          "requirement": "Recognize that this requires saturated water property data",
+          "found": true
+        },
+        {
+          "requirement": "Use steam tables or an equivalent property database",
+          "found": false
+        },
+        {
+          "requirement": "Compute latent heat as hg minus hf if not read directly",
+          "found": false
+        }
+      ],
+      "must_not_include": [
+        {
+          "requirement": "Pretend the steam-table values are known without lookup or provided data",
+          "violated": false
+        },
+        {
+          "requirement": "Use ideal-gas heat capacity formulas instead of saturated property data",
+          "violated": false
+        },
+        {
+          "requirement": "Claim the values are derivable from pressure alone without property data",
+          "violated": false
+        }
+      ],
+      "reasoning_checkpoints": [
+        {
+          "checkpoint": "Identifies this as a steam-table property lookup problem",
+          "weight": 0.25,
+          "found": true
+        },
+        {
+          "checkpoint": "Recognizes that saturated water data is required and not derivable from simple algebra alone",
+          "weight": 0.25,
+          "found": false
+        },
+        {
+          "checkpoint": "Uses a steam table or proposes an appropriate steam property lookup tool when the data is withheld",
+          "weight": 0.3,
+          "found": true
+        },
+        {
+          "checkpoint": "Checks latent heat by subtracting saturated liquid enthalpy from saturated vapor enthalpy",
+          "weight": 0.2,
+          "found": true
+        }
+      ],
+      "reasoning_score_pct": 75.0,
+      "judge_method": "heuristic",
+      "score_reliability": "rough_heuristic",
+      "score_notes": "Keyword matching across the response is a rough heuristic only. Use LLM judge scoring for higher-confidence reasoning evaluation."
+    },
+    "tool_proposals": {
+      "proposal_score": 0,
+      "proposal_possible": 1,
+      "proposal_score_pct": 0.0,
+      "mode": "required",
+      "allowed_tool_names": [
+        "steam_table_lookup"
+      ],
+      "allowed_priorities": [
+        "blocking"
+      ],
+      "matched_tool_name": null,
+      "matched_priority": null,
+      "notes": "Required tool proposal was not made."
+    },
+    "overall_pct": 76.2
+  },
+  "agent_response": {
+    "reasoning": "This is a steam table lookup problem for water at saturation conditions. At 200 kPa pressure, I need to find the saturation temperature and enthalpies. Since steam tables are not provided, I'll use the Antoine equation to find the saturation temperature, then estimate the enthalpies using correlations for water properties.",
+    "assumptions": [
+      "Water behaves according to standard steam table correlations",
+      "The Antoine equation parameters for water are valid at this pressure range",
+      "Standard correlations for water enthalpy are sufficiently accurate",
+      "The system is at equilibrium (saturated conditions)"
+    ],
+    "method": "I'll use the Antoine equation to find saturation temperature, then apply standard correlations for water enthalpy properties. The Antoine equation form is log10(P_sat) = A - B/(C + T) where P_sat is in mmHg and T is in \u00b0C. For water: A = 8.07131, B = 1730.630, C = 233.426.",
+    "outputs": {
+      "saturation_temperature": {
+        "value": 393.25,
+        "unit": "K"
+      },
+      "saturated_liquid_enthalpy": {
+        "value": 503.7,
+        "unit": "kJ/kg"
+      },
+      "saturated_vapor_enthalpy": {
+        "value": 2706.6,
+        "unit": "kJ/kg"
+      },
+      "latent_heat_vaporization": {
+        "value": 2202.9,
+        "unit": "kJ/kg"
+      }
+    },
+    "confidence": 0.85,
+    "skill_notes": "For steam table problems without provided data, the Antoine equation can give reasonable saturation temperatures. However, enthalpy values require either steam table data or more sophisticated correlations. The values I used are typical for water at this temperature range but would benefit from actual steam table lookup for higher accuracy. In practice, engineering software or steam tables should be consulted for precise values."
+  },
+  "tool_proposals": [],
+  "artifacts": []
+}
