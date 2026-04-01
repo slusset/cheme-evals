@@ -1,0 +1,11 @@
+[importlinter]
+root_package = cheme_evals
+
+[importlinter:contract:hex-layers]
+name = Enforce hexagonal dependency flow inside cheme_evals
+type = layers
+layers =
+    cheme_evals.adapters
+    cheme_evals.application
+    cheme_evals.ports
+    cheme_evals.domain

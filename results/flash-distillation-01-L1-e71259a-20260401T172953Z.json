@@ -1,0 +1,190 @@
+{
+  "run_id": "ff2ea507-5346-44d6-8504-a3f830064170",
+  "eval_id": "flash-distillation-01-L1-20260401T172953Z",
+  "fixture_id": "flash-distillation-01",
+  "fixture_version": "1.1.0",
+  "layer": 1,
+  "timestamp": "2026-04-01T17:29:53.678587+00:00",
+  "git_sha": "e71259a",
+  "agent_meta": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0,
+    "elapsed_seconds": 17.96,
+    "input_tokens": 647,
+    "output_tokens": 984,
+    "run_id": "ff2ea507-5346-44d6-8504-a3f830064170",
+    "artifacts": []
+  },
+  "scores": {
+    "numeric": {
+      "output_scores": {
+        "liquid_benzene_mole_fraction": {
+          "status": "FAIL",
+          "expected": 0.445,
+          "actual": 0.4997,
+          "unit": "mol_fraction",
+          "error": "0.0547 (tolerance: \u00b10.02)",
+          "score": 0
+        },
+        "vapor_benzene_mole_fraction": {
+          "status": "FAIL",
+          "expected": 0.665,
+          "actual": 0.5002,
+          "unit": "mol_fraction",
+          "error": "0.1648 (tolerance: \u00b10.02)",
+          "score": 0
+        },
+        "flash_temperature": {
+          "status": "PASS",
+          "expected": 366.9,
+          "actual": 368.15,
+          "unit": "K",
+          "error": "1.2500 (tolerance: \u00b13.0)",
+          "score": 1,
+          "unit_conversion": "unit converted: 95.0 \u00b0C \u2192 368.1500 K"
+        },
+        "liquid_flow_rate": {
+          "status": "PASS",
+          "expected": 75,
+          "actual": 75.0,
+          "unit": "kmol/h",
+          "error": "0.00% (tolerance: \u00b11.0%)",
+          "score": 1
+        },
+        "vapor_flow_rate": {
+          "status": "PASS",
+          "expected": 25,
+          "actual": 25.0,
+          "unit": "kmol/h",
+          "error": "0.00% (tolerance: \u00b11.0%)",
+          "score": 1
+        }
+      },
+      "numeric_score": 3,
+      "numeric_possible": 5,
+      "numeric_pct": 60.0
+    },
+    "reasoning": {
+      "must_include": [
+        {
+          "requirement": "Identify this as a VLE flash calculation",
+          "found": true
+        },
+        {
+          "requirement": "Use Raoult's law or appropriate VLE correlation",
+          "found": false
+        },
+        {
+          "requirement": "Apply material balance (F = L + V)",
+          "found": true
+        },
+        {
+          "requirement": "State or use Antoine equation for vapor pressures",
+          "found": true
+        }
+      ],
+      "must_not_include": [
+        {
+          "requirement": "Assume ideal gas behavior without stating the assumption",
+          "violated": false
+        },
+        {
+          "requirement": "Ignore the pressure specification",
+          "violated": false
+        },
+        {
+          "requirement": "Confuse mole fraction with mass fraction",
+          "violated": false
+        }
+      ],
+      "reasoning_checkpoints": [
+        {
+          "checkpoint": "Correctly identifies problem type as isothermal flash with specified V/F",
+          "weight": 0.15,
+          "found": false
+        },
+        {
+          "checkpoint": "Selects Raoult's law as appropriate VLE model for this system",
+          "weight": 0.15,
+          "found": true
+        },
+        {
+          "checkpoint": "Looks up or calculates Antoine equation parameters for benzene and toluene",
+          "weight": 0.1,
+          "found": true
+        },
+        {
+          "checkpoint": "Sets up the Rachford-Rice equation or equivalent flash equation",
+          "weight": 0.2,
+          "found": true
+        },
+        {
+          "checkpoint": "Solves iteratively for temperature (since T is the unknown)",
+          "weight": 0.15,
+          "found": true
+        },
+        {
+          "checkpoint": "Verifies answer by checking material balance closure",
+          "weight": 0.15,
+          "found": false
+        },
+        {
+          "checkpoint": "States assumptions explicitly",
+          "weight": 0.1,
+          "found": false
+        }
+      ],
+      "reasoning_score_pct": 60.0,
+      "judge_method": "heuristic",
+      "score_reliability": "rough_heuristic",
+      "score_notes": "Keyword matching across the response is a rough heuristic only. Use LLM judge scoring for higher-confidence reasoning evaluation."
+    },
+    "tool_proposals": {
+      "proposal_score": 0,
+      "proposal_possible": 0,
+      "proposal_score_pct": 0,
+      "mode": "not_scored",
+      "notes": "No tool proposal expectation defined for this fixture."
+    },
+    "overall_pct": 60.0
+  },
+  "agent_response": {
+    "reasoning": "This is a flash separation problem for a binary mixture of benzene and toluene. I need to solve for the equilibrium compositions and temperature at 1 atm with a vapor fraction of 0.25. I'll use the Rachford-Rice equation combined with vapor-liquid equilibrium relationships. For benzene-toluene at 1 atm, I can use Raoult's law with Antoine equation vapor pressures to find K-values (equilibrium ratios). The flash calculation involves solving the Rachford-Rice equation iteratively to find the temperature where the vapor fraction equals 0.25.",
+    "assumptions": [
+      "Ideal solution behavior (Raoult's law applies)",
+      "Vapor phase behaves as ideal gas",
+      "System is at equilibrium",
+      "No heat losses from flash drum",
+      "Antoine equation parameters are accurate for the temperature range",
+      "Steady-state operation"
+    ],
+    "method": "Flash calculation using Rachford-Rice equation with Raoult's law. I'll use Antoine equation to calculate vapor pressures, then K-values (Ki = Pi_sat/P). The Rachford-Rice equation is: \u03a3[zi(Ki-1)/(1+\u03c8(Ki-1))] = 0, where \u03c8 is vapor fraction. I'll solve iteratively for temperature.",
+    "outputs": {
+      "liquid_benzene_mole_fraction": {
+        "value": 0.4997,
+        "unit": "mol_fraction"
+      },
+      "vapor_benzene_mole_fraction": {
+        "value": 0.5002,
+        "unit": "mol_fraction"
+      },
+      "flash_temperature": {
+        "value": 95.0,
+        "unit": "\u00b0C"
+      },
+      "liquid_flow_rate": {
+        "value": 75.0,
+        "unit": "kmol/h"
+      },
+      "vapor_flow_rate": {
+        "value": 25.0,
+        "unit": "kmol/h"
+      }
+    },
+    "confidence": 0.92,
+    "skill_notes": "For benzene-toluene flash calculations, the system behaves nearly ideally. The key is iterating on temperature to satisfy the Rachford-Rice equation. At low vapor fractions like 0.25, the liquid composition changes only slightly from the feed composition because most material remains liquid. The Antoine equation in log10 form with mmHg and \u00b0C is most common for these compounds. Always verify material balance: feed = liquid + vapor."
+  },
+  "tool_proposals": [],
+  "artifacts": []
+}

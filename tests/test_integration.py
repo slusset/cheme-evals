@@ -415,3 +415,67 @@ class TestArtifactCli:
             assert updated["validation"]["reviewed_by"] == "ted"
         finally:
             sys.argv = original_argv
+
+
+class TestTraceCli:
+
+    def test_trace_summary_command_prints_run_overview(self, monkeypatch, tmp_path):
+        traces_dir = tmp_path / "traces"
+        artifacts_dir = tmp_path / "artifacts"
+        archive_log = tmp_path / "archive.jsonl"
+        monkeypatch.setattr(run_eval, "RESULTS_DIR", tmp_path)
+        monkeypatch.setattr(run_eval, "TRACES_DIR", traces_dir)
+        monkeypatch.setattr(run_eval, "ARTIFACTS_DIR", artifacts_dir)
+        monkeypatch.setattr(run_eval, "ARCHIVE_LOG", archive_log)
+        monkeypatch.setattr(run_eval, "get_git_sha", lambda: "deadbee")
+
+        fixture_path = PROJECT_ROOT / "fixtures" / "flash-distillation-01.json"
+        result = run_eval.run_fixture(str(fixture_path), use_mock=True, layer=1)
+
+        original_argv = sys.argv[:]
+        try:
+            sys.argv = [
+                "run_eval.py",
+                "--trace-summary",
+                "--run-id", result["run_id"],
+            ]
+            out = StringIO()
+            with redirect_stdout(out):
+                run_eval.main()
+            summary = out.getvalue()
+            assert f"TRACE SUMMARY: {result['run_id']}" in summary
+            assert "flash-distillation-01" in summary
+            assert "scores_computed" in summary
+            assert "run_completed" in summary
+        finally:
+            sys.argv = original_argv
+
+    def test_trace_summary_can_filter_event_types(self, monkeypatch, tmp_path):
+        traces_dir = tmp_path / "traces"
+        artifacts_dir = tmp_path / "artifacts"
+        archive_log = tmp_path / "archive.jsonl"
+        monkeypatch.setattr(run_eval, "RESULTS_DIR", tmp_path)
+        monkeypatch.setattr(run_eval, "TRACES_DIR", traces_dir)
+        monkeypatch.setattr(run_eval, "ARTIFACTS_DIR", artifacts_dir)
+        monkeypatch.setattr(run_eval, "ARCHIVE_LOG", archive_log)
+        monkeypatch.setattr(run_eval, "get_git_sha", lambda: "deadbee")
+
+        fixture_path = PROJECT_ROOT / "fixtures" / "flash-distillation-01.json"
+        result = run_eval.run_fixture(str(fixture_path), use_mock=True, layer=1)
+
+        original_argv = sys.argv[:]
+        try:
+            sys.argv = [
+                "run_eval.py",
+                "--trace-summary",
+                "--run-id", result["run_id"],
+                "--trace-event-type", "scores_computed",
+            ]
+            out = StringIO()
+            with redirect_stdout(out):
+                run_eval.main()
+            summary = out.getvalue()
+            assert "scores_computed" in summary
+            assert "run_started" not in summary.split("  EVENTS", 1)[1]
+        finally:
+            sys.argv = original_argv

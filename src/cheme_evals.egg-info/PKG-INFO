@@ -1,3 +1,10 @@
+Metadata-Version: 2.4
+Name: cheme-evals
+Version: 0.1.0
+Summary: ChemE domain eval harness for learning eval skills and best practices
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+
 # ChemE Agent Eval Harness
 
 A reproducible evaluation framework for domain-tailored AI agents operating
@@ -53,22 +60,6 @@ uv run python run_eval.py --compare
 ```bash
 uv run pytest
 ```
-
-## Workflow shortcuts
-
-This repo also includes a small [`just`](https://github.com/casey/just) task file
-for the common local workflows:
-
-```bash
-just test
-just arch
-just check
-just eval --fixture fixtures/flash-distillation-01.json --mock
-```
-
-`just arch` runs the Import Linter architecture contracts defined in
-[`.importlinter`](/Users/tedslusser/PycharmProjects/cheme-evals/.importlinter)
-with `PYTHONPATH=src` so the `src/` package layout is importable to the linter.
 
 ## Artifact workflow
 

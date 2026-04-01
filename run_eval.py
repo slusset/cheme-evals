@@ -26,6 +26,70 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 
 HARNESS_ROOT = Path(__file__).resolve().parent
+SRC_DIR = HARNESS_ROOT / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from cheme_evals.adapters.storage.archive_store import append_archive_record as append_archive_record_to_file
+from cheme_evals.adapters.cli.script_eval_runner import (
+    ScriptAgentAdapterConfig,
+    ScriptArchiveAdapterConfig,
+    ScriptArtifactAdapterConfig,
+    ScriptEvalRunnerAdapterConfig,
+    ScriptFixtureAdapterConfig,
+    ScriptPresenterAdapterConfig,
+    ScriptResultStoreAdapterConfig,
+    ScriptRuntimeAdapterConfig,
+    ScriptScoringAdapterConfig,
+    ScriptTraceAdapterConfig,
+    build_script_eval_runner_dependencies,
+)
+from cheme_evals.adapters.storage.artifact_store import (
+    get_artifact_path as get_artifact_path_in_dir,
+    list_artifacts as list_artifacts_in_dir,
+    load_artifact as load_artifact_from_dir,
+    record_artifact as record_artifact_in_dir,
+    save_artifact as save_artifact_in_dir,
+)
+from cheme_evals.adapters.storage.result_store import (
+    append_jsonl_record,
+    read_jsonl_records,
+    write_result,
+)
+from cheme_evals.application.fixtures import (
+    build_system_prompt as build_system_prompt_service,
+    build_user_prompt as build_user_prompt_service,
+    load_fixture as load_fixture_service,
+)
+from cheme_evals.application.runtime import (
+    call_agent as call_agent_service,
+    save_mock as save_mock_service,
+)
+from cheme_evals.application.presentation import (
+    load_trace_events as load_trace_events_service,
+    print_results as print_results_service,
+    print_trace_summary as print_trace_summary_service,
+)
+from cheme_evals.application.scoring import (
+    assemble_result as assemble_result_service,
+    normalize_unit as normalize_unit_service,
+    score_outputs as score_outputs_service,
+    score_reasoning as score_reasoning_service,
+    score_reasoning_keyword as score_reasoning_keyword_service,
+    score_tool_proposals as score_tool_proposals_service,
+)
+from cheme_evals.adapters.storage.trace_store import (
+    append_trace_event as append_trace_event_to_dir,
+    get_trace_path as get_trace_path_in_dir,
+)
+from cheme_evals.application.eval_runner import (
+    EvalRunnerDependencies,
+    compare_experiments as compare_experiments_service,
+    log_experiment as log_experiment_service,
+    run_fixture as run_fixture_service,
+)
+from cheme_evals.domain.config import HarnessPaths
+
 FIXTURES_DIR = HARNESS_ROOT / "fixtures"
 MOCKS_DIR = HARNESS_ROOT / "mocks"
 RESULTS_DIR = HARNESS_ROOT / "results"
@@ -47,6 +111,66 @@ ARTIFACT_STATUS_TRANSITIONS = {
 }
 
 
+def get_harness_paths() -> HarnessPaths:
+    """Return the active filesystem configuration for this harness process."""
+    return HarnessPaths(
+        harness_root=HARNESS_ROOT,
+        fixtures_dir=FIXTURES_DIR,
+        mocks_dir=MOCKS_DIR,
+        results_dir=RESULTS_DIR,
+        traces_dir=TRACES_DIR,
+        artifacts_dir=ARTIFACTS_DIR,
+        archive_log=ARCHIVE_LOG,
+        experiment_log=EXPERIMENT_LOG,
+        skills_dir=SKILLS_DIR,
+    )
+
+
+def build_eval_runner_dependencies() -> EvalRunnerDependencies:
+    """Build the current application-service dependency set."""
+    return build_script_eval_runner_dependencies(ScriptEvalRunnerAdapterConfig(
+        runtime=ScriptRuntimeAdapterConfig(
+            new_run_id_fn=new_run_id,
+            get_git_sha_fn=get_git_sha,
+            judge_default_model=globals().get(
+                "JUDGE_DEFAULT_MODEL", "claude-opus-4-20250514"
+            ),
+        ),
+        fixtures=ScriptFixtureAdapterConfig(
+            skills_dir=get_harness_paths().skills_dir,
+        ),
+        agent=ScriptAgentAdapterConfig(
+            resolve_provider_fn=resolve_provider,
+            providers=PROVIDERS,
+            get_api_key_fn=get_api_key,
+            anthropic_tool_loop_fn=call_anthropic_tool_loop,
+            mocks_dir=get_harness_paths().mocks_dir,
+        ),
+        scoring=ScriptScoringAdapterConfig(
+            llm_judge_fn=score_reasoning_llm_judge,
+            get_git_sha_fn=get_git_sha,
+        ),
+        presenter=ScriptPresenterAdapterConfig(
+            print_results_fn=print_results,
+        ),
+        traces=ScriptTraceAdapterConfig(
+            append_trace_event_fn=append_trace_event,
+            get_trace_path_fn=get_trace_path,
+        ),
+        artifacts=ScriptArtifactAdapterConfig(
+            record_artifact_fn=record_artifact,
+        ),
+        archive=ScriptArchiveAdapterConfig(
+            append_archive_record_fn=append_archive_record,
+        ),
+        results=ScriptResultStoreAdapterConfig(
+            write_result_fn=write_result,
+            append_jsonl_record_fn=append_jsonl_record,
+            read_jsonl_records_fn=read_jsonl_records,
+        ),
+    ))
+
+
 def get_git_sha() -> str:
     """Get current git commit SHA for traceability."""
     try:
@@ -66,65 +190,36 @@ def new_run_id() -> str:
 
 def get_trace_path(run_id: str) -> Path:
     """Return the JSONL trace path for a run."""
-    return TRACES_DIR / f"{run_id}.jsonl"
+    return get_trace_path_in_dir(get_harness_paths().traces_dir, run_id)
 
 
 def append_trace_event(run_id: str, event_type: str, payload: dict, sequence: int) -> int:
     """Append one event to the run's trace log and return the next sequence number."""
-    TRACES_DIR.mkdir(parents=True, exist_ok=True)
-    event = {
-        "event_id": str(uuid.uuid4()),
-        "run_id": run_id,
-        "sequence": sequence,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "type": event_type,
-        "payload": payload,
-    }
-    with open(get_trace_path(run_id), "a") as f:
-        f.write(json.dumps(event) + "\n")
-    return sequence + 1
+    return append_trace_event_to_dir(
+        get_harness_paths().traces_dir, run_id, event_type, payload, sequence
+    )
 
 
 def append_archive_record(record_type: str, record_id: str, payload: dict) -> dict:
     """Append one record to the central archive ledger."""
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    record = {
-        "record_type": record_type,
-        "record_id": record_id,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "payload": payload,
-    }
-    with open(ARCHIVE_LOG, "a") as f:
-        f.write(json.dumps(record) + "\n")
-    return record
+    return append_archive_record_to_file(
+        get_harness_paths().archive_log, record_type, record_id, payload
+    )
 
 
 def get_artifact_path(artifact_id: str) -> Path:
     """Return the file path for a stored artifact."""
-    return ARTIFACTS_DIR / f"{artifact_id}.json"
+    return get_artifact_path_in_dir(get_harness_paths().artifacts_dir, artifact_id)
 
 
 def load_artifact(artifact_id: str) -> dict:
     """Load one artifact record by ID."""
-    artifact_path = get_artifact_path(artifact_id)
-    if not artifact_path.exists():
-        raise FileNotFoundError(f"Artifact does not exist: {artifact_id}")
-    with open(artifact_path) as f:
-        artifact = json.load(f)
-    artifact["artifact_path"] = str(artifact_path)
-    return artifact
+    return load_artifact_from_dir(get_harness_paths().artifacts_dir, artifact_id)
 
 
 def save_artifact(artifact: dict) -> dict:
     """Persist one artifact record to disk."""
-    ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
-    artifact_path = get_artifact_path(artifact["artifact_id"])
-    artifact_to_write = dict(artifact)
-    artifact_to_write.pop("artifact_path", None)
-    with open(artifact_path, "w") as f:
-        json.dump(artifact_to_write, f, indent=2)
-    artifact["artifact_path"] = str(artifact_path)
-    return artifact
+    return save_artifact_in_dir(get_harness_paths().artifacts_dir, artifact)
 
 
 def transition_artifact_status(
@@ -181,20 +276,9 @@ def transition_artifact_status(
 
 def list_artifacts(status: str = None, artifact_type: str = None) -> list[dict]:
     """List artifact records from the local registry with optional filters."""
-    if not ARTIFACTS_DIR.exists():
-        return []
-
-    artifacts = []
-    for path in sorted(ARTIFACTS_DIR.glob("*.json")):
-        with open(path) as f:
-            artifact = json.load(f)
-        artifact["artifact_path"] = str(path)
-        if status and artifact.get("status") != status:
-            continue
-        if artifact_type and artifact.get("artifact_type") != artifact_type:
-            continue
-        artifacts.append(artifact)
-    return artifacts
+    return list_artifacts_in_dir(
+        get_harness_paths().artifacts_dir, status=status, artifact_type=artifact_type
+    )
 
 
 def print_artifact_summary(artifact: dict):
@@ -218,42 +302,15 @@ def record_artifact(
     git_sha: str,
 ) -> dict:
     """Persist a first-class artifact record and return it."""
-    ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
-    artifact_id = str(uuid.uuid4())
-    artifact = {
-        "artifact_id": artifact_id,
-        "artifact_type": artifact_type,
-        "status": "proposed",
-        "summary": proposal.get("reason", ""),
-        "source_run_id": run_id,
-        "source_fixture_id": fixture["id"],
-        "source_fixture_version": fixture.get("version", "unknown"),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "git_sha": git_sha,
-        "proposal": proposal,
-        "validation": {
-            "status": "not_validated",
-            "tests_passed": False,
-            "reviewed_by": None,
-        },
-    }
-    artifact_path = ARTIFACTS_DIR / f"{artifact_id}.json"
-    with open(artifact_path, "w") as f:
-        json.dump(artifact, f, indent=2)
-    artifact["artifact_path"] = str(artifact_path)
-    append_archive_record(
-        "artifact",
-        artifact_id,
-        {
-            "artifact_id": artifact_id,
-            "artifact_type": artifact_type,
-            "status": artifact["status"],
-            "source_run_id": run_id,
-            "fixture_id": fixture["id"],
-            "path": str(artifact_path),
-        },
+    return record_artifact_in_dir(
+        artifacts_dir=get_harness_paths().artifacts_dir,
+        archive_log=get_harness_paths().archive_log,
+        run_id=run_id,
+        fixture=fixture,
+        artifact_type=artifact_type,
+        proposal=proposal,
+        git_sha=git_sha,
     )
-    return artifact
 
 
 # ---------------------------------------------------------------------------
@@ -261,16 +318,8 @@ def record_artifact(
 # ---------------------------------------------------------------------------
 
 def load_fixture(path: str) -> dict:
-    """Load and validate a fixture file."""
-    with open(path) as f:
-        fixture = json.load(f)
-
-    required = ["id", "problem", "inputs", "expected_outputs", "acceptance_criteria"]
-    missing = [k for k in required if k not in fixture]
-    if missing:
-        raise ValueError(f"Fixture missing required fields: {missing}")
-
-    return fixture
+    """Compatibility wrapper for fixture loading."""
+    return load_fixture_service(path)
 
 
 # ---------------------------------------------------------------------------
@@ -278,103 +327,17 @@ def load_fixture(path: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def build_system_prompt(fixture: dict, layer: int = 1) -> str:
-    """
-    Assemble the system prompt from version-controlled components.
-    This is the agent's 'starting state' — everything it knows.
-
-    Layer controls what the agent has access to:
-      Layer 1: No skills — pure reasoning with all constants embedded in inputs
-      Layer 2: Skills loaded — agent retrieves reference data from domain docs
-      Layer 3: No skills — agent must use tools to find data (future)
-    """
-    # Load skill documents at Layer 2 only
-    skills_context = ""
-    if layer == 2 and SKILLS_DIR.exists():
-        for skill_file in sorted(SKILLS_DIR.glob("*.md")):
-            skills_context += f"\n--- Skill: {skill_file.stem} ---\n"
-            skills_context += skill_file.read_text()
-            skills_context += "\n"
-
-    return f"""You are a chemical engineering process simulation agent.
-
-Your task is to solve chemical engineering problems accurately and show your reasoning.
-
-## Response format
-
-You MUST respond with valid JSON containing these fields:
-- "reasoning": Step-by-step explanation of your approach (string)
-- "assumptions": List of assumptions you are making (array of strings)
-- "method": The method/model you chose and why (string)
-- "calculations": Key intermediate calculation steps (object with labeled values)
-- "outputs": Your final answers, keyed EXACTLY as they appear in the problem's requested outputs (object)
-  Each output should have "value" (number) and "unit" (string)
-- "confidence": Your confidence in the answer, 0-1 (number)
-- "skill_notes": What you learned that would help solve similar problems faster next time (string)
-
-## Rules
-- Always state your assumptions explicitly
-- Always verify your answer with a material balance check
-- If you use Antoine equation, state which form and units
-- Show intermediate values so reasoning can be audited
-- If you are unsure, say so — do not fabricate precision
-
-{skills_context}
-
-Respond ONLY with the JSON object. No markdown fences, no preamble."""
+    """Compatibility wrapper for system prompt assembly."""
+    return build_system_prompt_service(
+        fixture,
+        layer=layer,
+        skills_dir=get_harness_paths().skills_dir,
+    )
 
 
 def build_user_prompt(fixture: dict, layer: int = 1) -> str:
-    """
-    Build the user message from the fixture's problem and inputs.
-
-    Layer controls which inputs are provided:
-      Layer 1: All inputs (problem_data + reference_data)
-      Layer 2: Only problem_data — reference_data must come from skills
-      Layer 3: Only problem_data — reference_data must come from tools
-    """
-    problem = fixture["problem"]
-    inputs = fixture["inputs"]
-
-    input_lines = []
-    suppressed = []
-    for name, spec in inputs.items():
-        input_class = spec.get("input_class", "problem_data")
-        if layer >= 2 and input_class == "reference_data":
-            suppressed.append(name)
-            continue
-        desc = spec.get("description", "")
-        input_lines.append(f"  - {name}: {spec['value']} {spec['unit']}" +
-                           (f" ({desc})" if desc else ""))
-
-    # Build the suppressed data note for Layer 2/3
-    suppressed_note = ""
-    if suppressed:
-        suppressed_note = f"""
-## Note
-
-The following quantities are NOT provided — you must look them up from your reference materials or calculate them:
-{chr(10).join(f'  - {name}' for name in suppressed)}
-"""
-
-    return f"""## Problem
-
-{problem['statement']}
-
-## Task
-
-{problem['task']}
-
-## Given values
-
-{chr(10).join(input_lines)}
-{suppressed_note}
-## Output format
-
-Return your answers as JSON with an "outputs" field containing these keys:
-{json.dumps(list(fixture['expected_outputs'].keys()), indent=2)}
-
-Each output should have "value" (number) and "unit" (string).
-"""
+    """Compatibility wrapper for user prompt assembly."""
+    return build_user_prompt_service(fixture, layer=layer)
 
 
 # ---------------------------------------------------------------------------
@@ -387,158 +350,29 @@ from providers import PROVIDERS, resolve_provider, get_api_key, call_anthropic_t
 def call_agent(system_prompt: str, user_prompt: str, mock_path: str = None,
                provider_name: str = None, model: str = None,
                layer: int = 1) -> dict:
-    """
-    Send the problem to the agent and get a response.
-    If mock_path is provided, require and return the recorded response instead.
-    Layer 3 uses the multi-turn tool loop (python_execute).
-    """
-    if mock_path:
-        if not os.path.exists(mock_path):
-            raise FileNotFoundError(
-                f"Requested mock response does not exist: {mock_path}"
-            )
-        print(f"  [mock] Loading from {mock_path}")
-        with open(mock_path) as f:
-            return json.load(f)
-
-    # Resolve provider + model
-    provider_name = resolve_provider(provider_name)
-    provider = PROVIDERS[provider_name]
-    model = model or provider["default_model"]
-    api_key = get_api_key(provider_name)
-
-    # Layer 3: use tool loop for Anthropic provider
-    if layer == 3 and provider_name == "anthropic":
-        print(f"  [live] Calling {provider_name} ({model}) with tool loop...")
-        start_time = time.time()
-        raw = call_anthropic_tool_loop(
-            system=system_prompt,
-            user=user_prompt,
-            model=model,
-            temperature=0,
-            max_tokens=4096,
-            api_key=api_key,
-        )
-    else:
-        print(f"  [live] Calling {provider_name} ({model})...")
-        start_time = time.time()
-        raw = provider["call"](
-            system=system_prompt,
-            user=user_prompt,
-            model=model,
-            temperature=0,
-            max_tokens=4096,
-            api_key=api_key,
-        )
-
-    elapsed = time.time() - start_time
-
-    # Parse the JSON response
-    # Strip markdown fences if present
-    cleaned = raw["text"].strip()
-    if cleaned.startswith("```"):
-        cleaned = cleaned.split("\n", 1)[1]
-    if cleaned.endswith("```"):
-        cleaned = cleaned.rsplit("```", 1)[0]
-    cleaned = cleaned.strip()
-
-    try:
-        response = json.loads(cleaned)
-    except json.JSONDecodeError as e:
-        response = {
-            "parse_error": str(e),
-            "raw_text": raw["text"],
-            "outputs": {}
-        }
-
-    meta = {
-        "provider": provider_name,
-        "model": raw["model"],
-        "temperature": 0,
-        "elapsed_seconds": round(elapsed, 2),
-        "input_tokens": raw["input_tokens"],
-        "output_tokens": raw["output_tokens"],
-    }
-    if "tool_turns" in raw:
-        meta["tool_turns"] = raw["tool_turns"]
-    if "tool_proposals" in raw:
-        meta["tool_proposals"] = raw["tool_proposals"]
-    response["_meta"] = meta
-
-    return response
+    """Compatibility wrapper for agent execution."""
+    return call_agent_service(
+        system_prompt,
+        user_prompt,
+        mock_path,
+        provider_name=provider_name,
+        model=model,
+        layer=layer,
+        resolve_provider_fn=resolve_provider,
+        providers=PROVIDERS,
+        get_api_key_fn=get_api_key,
+        anthropic_tool_loop_fn=call_anthropic_tool_loop,
+    )
 
 
 def save_mock(response: dict, fixture_id: str):
-    """Save a response as a mock for future deterministic replay."""
-    mock_dir = MOCKS_DIR / "agent-responses"
-    mock_dir.mkdir(parents=True, exist_ok=True)
-    mock_path = mock_dir / f"{fixture_id}.json"
-    with open(mock_path, "w") as f:
-        json.dump(response, f, indent=2)
-    print(f"  [mock] Saved to {mock_path}")
-
-
-# ---------------------------------------------------------------------------
-# Unit normalization
-# ---------------------------------------------------------------------------
-
-# Known equivalent unit groups — when expected and actual units are both in
-# the same group, we convert actual → expected before comparing values.
-UNIT_CONVERSIONS = {
-    # Temperature: normalize to expected unit
-    "K": {
-        "°C": lambda v: v + 273.15,
-        "degC": lambda v: v + 273.15,
-        "C": lambda v: v + 273.15,
-        "°F": lambda v: (v - 32) * 5/9 + 273.15,
-    },
-    "°C": {
-        "K": lambda v: v - 273.15,
-        "°F": lambda v: (v - 32) * 5/9,
-    },
-    # Pressure
-    "kPa": {
-        "atm": lambda v: v * 101.325,
-        "bar": lambda v: v * 100,
-        "mmHg": lambda v: v * 0.133322,
-        "Torr": lambda v: v * 0.133322,
-        "psi": lambda v: v * 6.89476,
-    },
-    "atm": {
-        "kPa": lambda v: v / 101.325,
-        "bar": lambda v: v / 1.01325,
-        "mmHg": lambda v: v / 760,
-        "Torr": lambda v: v / 760,
-    },
-    "bar": {
-        "atm": lambda v: v * 1.01325,
-        "kPa": lambda v: v / 100,
-        "Pa": lambda v: v / 1e5,
-    },
-}
+    """Compatibility wrapper for mock persistence."""
+    return save_mock_service(response, fixture_id, mocks_dir=get_harness_paths().mocks_dir)
 
 
 def normalize_unit(actual_val: float, actual_unit: str, expected_unit: str) -> tuple:
-    """
-    If the agent returned a value in a different but compatible unit,
-    convert it to the expected unit. Returns (converted_val, note_or_None).
-    """
-    if actual_unit == expected_unit:
-        return actual_val, None
-
-    # Strip whitespace and normalize common variations
-    a = actual_unit.strip()
-    e = expected_unit.strip()
-    if a == e:
-        return actual_val, None
-
-    converters = UNIT_CONVERSIONS.get(e, {})
-    if a in converters:
-        converted = converters[a](actual_val)
-        return converted, f"unit converted: {actual_val} {a} → {converted:.4f} {e}"
-
-    # No conversion available — return as-is
-    return actual_val, None
+    """Compatibility wrapper for unit normalization."""
+    return normalize_unit_service(actual_val, actual_unit, expected_unit)
 
 
 # ---------------------------------------------------------------------------
@@ -546,163 +380,13 @@ def normalize_unit(actual_val: float, actual_unit: str, expected_unit: str) -> t
 # ---------------------------------------------------------------------------
 
 def score_outputs(actual: dict, expected: dict, tolerances: dict) -> dict:
-    """
-    Compare agent outputs against expected values.
-    Returns a detailed score report.
-    """
-    results = {}
-    total_score = 0
-    total_possible = 0
-
-    for key, expected_spec in expected.items():
-        total_possible += 1
-        expected_val = expected_spec["value"]
-        expected_unit = expected_spec["unit"]
-
-        # Find the agent's answer
-        actual_spec = actual.get(key, {})
-        if not actual_spec:
-            results[key] = {
-                "status": "MISSING",
-                "expected": expected_val,
-                "actual": None,
-                "score": 0,
-                "note": "Agent did not produce this output"
-            }
-            continue
-
-        actual_val = actual_spec.get("value")
-        if actual_val is None:
-            results[key] = {
-                "status": "MISSING",
-                "expected": expected_val,
-                "actual": None,
-                "score": 0,
-                "note": "Agent output has no 'value' field"
-            }
-            continue
-
-        # Normalize units if the agent used a different but compatible unit
-        actual_unit = actual_spec.get("unit", "")
-        actual_val, unit_note = normalize_unit(actual_val, actual_unit, expected_unit)
-        if unit_note:
-            print(f"    [{key}] {unit_note}")
-
-        # Get tolerance for this output
-        tol = tolerances.get(key, {"type": "relative_percent", "value": 5.0})
-        tol_type = tol["type"]
-        tol_val = tol["value"]
-
-        # Calculate error
-        if tol_type == "absolute":
-            error = abs(actual_val - expected_val)
-            within_tolerance = error <= tol_val
-            error_display = f"{error:.4f} (tolerance: ±{tol_val})"
-        elif tol_type == "relative_percent":
-            if expected_val == 0:
-                error = abs(actual_val)
-                within_tolerance = error < 1e-6
-                error_display = f"expected 0, got {actual_val}"
-            else:
-                error = abs((actual_val - expected_val) / expected_val) * 100
-                within_tolerance = error <= tol_val
-                error_display = f"{error:.2f}% (tolerance: ±{tol_val}%)"
-        else:
-            within_tolerance = False
-            error_display = f"Unknown tolerance type: {tol_type}"
-
-        score = 1 if within_tolerance else 0
-        total_score += score
-
-        result_entry = {
-            "status": "PASS" if within_tolerance else "FAIL",
-            "expected": expected_val,
-            "actual": actual_val,
-            "unit": expected_unit,
-            "error": error_display,
-            "score": score,
-        }
-        if unit_note:
-            result_entry["unit_conversion"] = unit_note
-        results[key] = result_entry
-
-    return {
-        "output_scores": results,
-        "numeric_score": total_score,
-        "numeric_possible": total_possible,
-        "numeric_pct": round(total_score / total_possible * 100, 1) if total_possible > 0 else 0,
-    }
+    """Compatibility wrapper for numeric scoring."""
+    return score_outputs_service(actual, expected, tolerances)
 
 
 def score_reasoning_keyword(response: dict, fixture: dict) -> dict:
-    """
-    Rough heuristic reasoning scorer.
-
-    This is intentionally cheap and deterministic, but it is not a trustworthy
-    judge of reasoning quality. Use it as a coarse baseline only.
-    """
-    criteria = fixture.get("acceptance_criteria", {})
-    reasoning_text = json.dumps(response).lower()
-
-    # Check must_include (simple keyword presence)
-    must_include_results = []
-    for item in criteria.get("must_include", []):
-        # Check for key phrases from the requirement
-        keywords = item.lower().split()
-        # Require at least half the significant words to appear
-        significant = [w for w in keywords if len(w) > 3]
-        found = sum(1 for w in significant if w in reasoning_text)
-        passed = found >= len(significant) * 0.5 if significant else True
-        must_include_results.append({
-            "requirement": item,
-            "found": passed,
-        })
-
-    # Check must_not_include
-    must_not_results = []
-    for item in criteria.get("must_not_include", []):
-        keywords = item.lower().split()
-        significant = [w for w in keywords if len(w) > 3]
-        found = sum(1 for w in significant if w in reasoning_text)
-        violated = found >= len(significant) * 0.7 if significant else False
-        must_not_results.append({
-            "requirement": item,
-            "violated": violated,
-        })
-
-    # Reasoning checkpoints (from agent_evaluation)
-    checkpoints = fixture.get("agent_evaluation", {}).get("reasoning_checkpoints", [])
-    checkpoint_results = []
-    weighted_score = 0
-    total_weight = 0
-    for cp in checkpoints:
-        # Simple heuristic — check if key terms appear in reasoning
-        terms = cp["checkpoint"].lower().split()
-        significant = [w for w in terms if len(w) > 4]
-        found = sum(1 for w in significant if w in reasoning_text)
-        passed = found >= len(significant) * 0.4 if significant else True
-        weight = cp.get("weight", 0.1)
-        total_weight += weight
-        if passed:
-            weighted_score += weight
-        checkpoint_results.append({
-            "checkpoint": cp["checkpoint"],
-            "weight": weight,
-            "found": passed,
-        })
-
-    return {
-        "must_include": must_include_results,
-        "must_not_include": must_not_results,
-        "reasoning_checkpoints": checkpoint_results,
-        "reasoning_score_pct": round(weighted_score / total_weight * 100, 1) if total_weight > 0 else 0,
-        "judge_method": "heuristic",
-        "score_reliability": "rough_heuristic",
-        "score_notes": (
-            "Keyword matching across the response is a rough heuristic only. "
-            "Use LLM judge scoring for higher-confidence reasoning evaluation."
-        ),
-    }
+    """Compatibility wrapper for heuristic reasoning scoring."""
+    return score_reasoning_keyword_service(response, fixture)
 
 
 # ---------------------------------------------------------------------------
@@ -944,111 +628,20 @@ def score_reasoning_llm_judge(response: dict, fixture: dict,
 
 def score_reasoning(response: dict, fixture: dict, use_judge: bool = False,
                     judge_provider: str = "anthropic", judge_model: str = None) -> dict:
-    """
-    Score reasoning — dispatches to a rough heuristic baseline or an LLM judge.
-    When using the judge, also runs the heuristic scorer for comparison only.
-    """
-    if not use_judge:
-        return score_reasoning_keyword(response, fixture)
-
-    # Run both scorers when judge is enabled
-    heuristic_result = score_reasoning_keyword(response, fixture)
-    judge_result = score_reasoning_llm_judge(
-        response, fixture,
+    """Compatibility wrapper for reasoning scoring."""
+    return score_reasoning_service(
+        response,
+        fixture,
+        use_judge=use_judge,
         judge_provider=judge_provider,
         judge_model=judge_model,
+        llm_judge_fn=score_reasoning_llm_judge,
     )
-
-    # The judge result is authoritative; include the heuristic as a coarse baseline
-    judge_result["heuristic_baseline"] = {
-        "reasoning_score_pct": heuristic_result["reasoning_score_pct"],
-        "checkpoints": heuristic_result["reasoning_checkpoints"],
-        "score_notes": heuristic_result.get("score_notes", ""),
-    }
-    judge_result["score_reliability"] = "judge_scored"
-
-    delta = judge_result["reasoning_score_pct"] - heuristic_result["reasoning_score_pct"]
-    print(f"  [judge] Score: {judge_result['reasoning_score_pct']}% "
-          f"(heuristic baseline: {heuristic_result['reasoning_score_pct']}%, "
-          f"delta: {'+' if delta >= 0 else ''}{delta:.1f}%)")
-
-    return judge_result
 
 
 def score_tool_proposals(response: dict, fixture: dict) -> dict:
-    """
-    Score whether tool proposals were made appropriately for the fixture.
-
-    This is a separate dimension from reasoning quality. It evaluates whether
-    the agent recognized a capability gap and proposed the right tool at the
-    right time.
-    """
-    expectation = fixture.get("agent_evaluation", {}).get("tool_proposal_expectation")
-    if not expectation:
-        return {
-            "proposal_score": 0,
-            "proposal_possible": 0,
-            "proposal_score_pct": 0,
-            "mode": "not_scored",
-            "notes": "No tool proposal expectation defined for this fixture.",
-        }
-
-    proposals = response.get("_meta", {}).get("tool_proposals", [])
-    mode = expectation.get("mode", "unnecessary")
-    allowed_names = set(expectation.get("allowed_tool_names", []))
-    allowed_priorities = set(expectation.get("allowed_priorities", []))
-
-    matched = None
-    for proposal in proposals:
-        if allowed_names and proposal.get("tool_name") not in allowed_names:
-            continue
-        if allowed_priorities and proposal.get("priority") not in allowed_priorities:
-            continue
-        matched = proposal
-        break
-
-    if mode == "required":
-        passed = matched is not None
-        note = (
-            f"Matched required proposal: {matched['tool_name']}"
-            if matched else
-            "Required tool proposal was not made."
-        )
-    elif mode == "optional":
-        passed = (not proposals) or (matched is not None)
-        if not proposals:
-            note = "No proposal made; acceptable because proposal is optional."
-        elif matched:
-            note = f"Matched optional proposal: {matched['tool_name']}"
-        else:
-            note = "Proposal was made, but it did not match the expected optional tool."
-    elif mode == "unnecessary":
-        passed = len(proposals) == 0
-        note = (
-            "No proposal made, as expected."
-            if passed else
-            "Agent proposed a tool even though the fixture should be solvable without one."
-        )
-    else:
-        return {
-            "proposal_score": 0,
-            "proposal_possible": 0,
-            "proposal_score_pct": 0,
-            "mode": "invalid_expectation",
-            "notes": f"Unknown tool proposal expectation mode: {mode}",
-        }
-
-    return {
-        "proposal_score": 1 if passed else 0,
-        "proposal_possible": 1,
-        "proposal_score_pct": 100.0 if passed else 0.0,
-        "mode": mode,
-        "allowed_tool_names": sorted(allowed_names),
-        "allowed_priorities": sorted(allowed_priorities),
-        "matched_tool_name": matched.get("tool_name") if matched else None,
-        "matched_priority": matched.get("priority") if matched else None,
-        "notes": note,
-    }
+    """Compatibility wrapper for proposal scoring."""
+    return score_tool_proposals_service(response, fixture)
 
 
 # ---------------------------------------------------------------------------
@@ -1057,50 +650,16 @@ def score_tool_proposals(response: dict, fixture: dict) -> dict:
 
 def assemble_result(fixture: dict, response: dict, output_scores: dict, reasoning_scores: dict,
                     proposal_scores: dict = None, layer: int = 1) -> dict:
-    """Assemble the full eval result with traceability metadata."""
-    proposal_scores = proposal_scores or {
-        "proposal_score": 0,
-        "proposal_possible": 0,
-        "proposal_score_pct": 0,
-    }
-    if proposal_scores.get("proposal_possible", 0) > 0:
-        overall_pct = round(
-            output_scores["numeric_pct"] * 0.5 +
-            reasoning_scores["reasoning_score_pct"] * 0.35 +
-            proposal_scores["proposal_score_pct"] * 0.15,
-            1,
-        )
-    else:
-        overall_pct = round(
-            (output_scores["numeric_pct"] * 0.6 + reasoning_scores["reasoning_score_pct"] * 0.4),
-            1
-        )
-    return {
-        "run_id": response.get("_meta", {}).get("run_id"),
-        "eval_id": f"{fixture['id']}-L{layer}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}",
-        "fixture_id": fixture["id"],
-        "fixture_version": fixture.get("version", "unknown"),
-        "layer": layer,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "git_sha": get_git_sha(),
-        "agent_meta": response.get("_meta", {}),
-        "scores": {
-            "numeric": output_scores,
-            "reasoning": reasoning_scores,
-            "tool_proposals": proposal_scores,
-            "overall_pct": overall_pct,
-        },
-        "agent_response": {
-            "reasoning": response.get("reasoning", ""),
-            "assumptions": response.get("assumptions", []),
-            "method": response.get("method", ""),
-            "outputs": response.get("outputs", {}),
-            "confidence": response.get("confidence", None),
-            "skill_notes": response.get("skill_notes", ""),
-        },
-        "tool_proposals": response.get("_meta", {}).get("tool_proposals", []),
-        "artifacts": response.get("_meta", {}).get("artifacts", []),
-    }
+    """Compatibility wrapper for result assembly."""
+    return assemble_result_service(
+        fixture,
+        response,
+        output_scores,
+        reasoning_scores,
+        proposal_scores,
+        layer=layer,
+        git_sha=get_git_sha(),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1108,113 +667,8 @@ def assemble_result(fixture: dict, response: dict, output_scores: dict, reasonin
 # ---------------------------------------------------------------------------
 
 def print_results(result: dict):
-    """Print a human-readable summary of the eval results."""
-    scores = result["scores"]
-    numeric = scores["numeric"]
-    reasoning = scores["reasoning"]
-    proposal_score = scores.get("tool_proposals", {})
-
-    layer_labels = {1: "Layer 1 (base model)", 2: "Layer 2 (model + skills)", 3: "Layer 3 (model + tools)"}
-    layer = result.get("layer", 1)
-
-    print("\n" + "=" * 60)
-    print(f"  EVAL: {result['fixture_id']} v{result['fixture_version']}")
-    print(f"  {layer_labels.get(layer, f'Layer {layer}')}")
-    print(f"  Time: {result['timestamp']}")
-    print(f"  Git:  {result['git_sha']}")
-    print("=" * 60)
-
-    # Numeric outputs
-    print(f"\n  NUMERIC ACCURACY: {numeric['numeric_score']}/{numeric['numeric_possible']} "
-          f"({numeric['numeric_pct']}%)")
-    print("  " + "-" * 40)
-    for key, r in numeric["output_scores"].items():
-        status = "PASS" if r["status"] == "PASS" else "FAIL"
-        icon = "  ✓" if status == "PASS" else "  ✗"
-        print(f"  {icon} {key}")
-        print(f"      expected: {r['expected']}, actual: {r.get('actual', 'MISSING')}")
-        if "error" in r:
-            print(f"      error: {r['error']}")
-
-    # Reasoning
-    judge_method = reasoning.get("judge_method", "heuristic")
-    method_label = "LLM JUDGE" if judge_method == "llm" else "ROUGH HEURISTIC"
-    print(f"\n  REASONING ({method_label}): {reasoning['reasoning_score_pct']}%")
-    if judge_method == "llm":
-        print(f"  Judge: {reasoning.get('judge_provider', '?')}/{reasoning.get('judge_model', '?')}")
-        baseline = reasoning.get("heuristic_baseline", {})
-        if baseline:
-            print(f"  Heuristic baseline: {baseline.get('reasoning_score_pct', '?')}%")
-    elif reasoning.get("score_notes"):
-        print(f"  Note: {reasoning['score_notes']}")
-    print("  " + "-" * 40)
-    for cp in reasoning.get("reasoning_checkpoints", []):
-        icon = "  ✓" if cp["found"] else "  ✗"
-        evidence = cp.get("evidence", "")
-        evidence_str = f"\n        → {evidence}" if evidence else ""
-        print(f"  {icon} {cp['checkpoint']} (weight: {cp['weight']}){evidence_str}")
-
-    # Must include
-    for mi in reasoning.get("must_include", []):
-        icon = "  ✓" if mi["found"] else "  ✗"
-        evidence = mi.get("evidence", "")
-        evidence_str = f"\n        → {evidence}" if evidence else ""
-        print(f"  {icon} Must include: {mi['requirement']}{evidence_str}")
-
-    # Must not include
-    for mn in reasoning.get("must_not_include", []):
-        icon = "  ✓" if not mn["violated"] else "  ✗"
-        evidence = mn.get("evidence", "")
-        evidence_str = f"\n        → {evidence}" if evidence else ""
-        print(f"  {icon} Must NOT: {mn['requirement']}" +
-              (" [VIOLATED]" if mn["violated"] else "") + evidence_str)
-
-    # Judge notes
-    if reasoning.get("judge_notes"):
-        print(f"\n  JUDGE NOTES: {reasoning['judge_notes']}")
-
-    # Overall
-    if proposal_score.get("proposal_possible", 0) > 0:
-        print(f"\n  TOOL PROPOSAL QUALITY: {proposal_score['proposal_score_pct']}%")
-        print(f"  Note: {proposal_score.get('notes', '')}")
-    print(f"\n  OVERALL SCORE: {scores['overall_pct']}%")
-    if proposal_score.get("proposal_possible", 0) > 0:
-        print("    (50% numeric accuracy + 35% reasoning quality + 15% proposal quality)")
-    else:
-        print("    (60% numeric accuracy + 40% reasoning quality)")
-
-    # Tool proposals
-    proposals = result.get("tool_proposals", [])
-    if proposals:
-        print(f"\n  TOOL PROPOSALS: {len(proposals)}")
-        print("  " + "-" * 40)
-        for p in proposals:
-            priority_icon = {"blocking": "🔴", "would_improve": "🟡", "nice_to_have": "🟢"}.get(
-                p.get("priority", ""), "⚪"
-            )
-            print(f"  {priority_icon} {p.get('tool_name', 'unnamed')} [{p.get('priority', '?')}]")
-            print(f"      Why: {p.get('reason', '(no reason given)')}")
-            iface = p.get("interface", {})
-            if iface:
-                inputs = iface.get("inputs", [])
-                outputs = iface.get("outputs", [])
-                if inputs:
-                    in_names = ", ".join(i["name"] for i in inputs)
-                    print(f"      Inputs:  {in_names}")
-                if outputs:
-                    out_names = ", ".join(o["name"] for o in outputs)
-                    print(f"      Returns: {out_names}")
-            if p.get("implementation_hint"):
-                print(f"      Hint: {p['implementation_hint']}")
-
-    # Agent confidence
-    confidence = result["agent_response"].get("confidence")
-    if confidence is not None:
-        print(f"\n  AGENT SELF-ASSESSED CONFIDENCE: {confidence}")
-        calibration = abs(confidence * 100 - scores["overall_pct"])
-        print(f"  CALIBRATION ERROR: {calibration:.1f} points")
-
-    print("\n" + "=" * 60)
+    """Compatibility wrapper for result presentation."""
+    print_results_service(result)
 
 
 # ---------------------------------------------------------------------------
@@ -1226,189 +680,19 @@ def run_fixture(fixture_path: str, use_mock: bool = False, save_mock_flag: bool 
                 use_judge: bool = False, judge_provider: str = "anthropic",
                 judge_model: str = None):
     """Run a single fixture evaluation."""
-    run_id = new_run_id()
-    trace_seq = 1
-    git_sha = get_git_sha()
-
-    print(f"\nLoading fixture: {fixture_path}")
-    fixture = load_fixture(fixture_path)
-    print(f"  ID: {fixture['id']}")
-    print(f"  Layer: {layer}")
-    if use_judge:
-        print(f"  Judge: {judge_provider}/{judge_model or JUDGE_DEFAULT_MODEL}")
-    print(f"  Problem: {fixture['problem']['statement'][:80]}...")
-    print(f"  Run ID: {run_id}")
-
-    trace_seq = append_trace_event(
-        run_id,
-        "run_started",
-        {
-            "fixture_path": fixture_path,
-            "fixture_id": fixture["id"],
-            "fixture_version": fixture.get("version", "unknown"),
-            "layer": layer,
-            "use_mock": use_mock,
-            "provider_name": provider_name,
-            "model": model,
-            "use_judge": use_judge,
-            "judge_provider": judge_provider,
-            "judge_model": judge_model,
-            "git_sha": git_sha,
-        },
-        trace_seq,
+    return run_fixture_service(
+        paths=get_harness_paths(),
+        deps=build_eval_runner_dependencies(),
+        fixture_path=fixture_path,
+        use_mock=use_mock,
+        save_mock_flag=save_mock_flag,
+        provider_name=provider_name,
+        model=model,
+        layer=layer,
+        use_judge=use_judge,
+        judge_provider=judge_provider,
+        judge_model=judge_model,
     )
-
-    # Build prompts (layer controls what gets included)
-    system_prompt = build_system_prompt(fixture, layer=layer)
-    user_prompt = build_user_prompt(fixture, layer=layer)
-    trace_seq = append_trace_event(
-        run_id,
-        "prompt_built",
-        {
-            "system_prompt_chars": len(system_prompt),
-            "user_prompt_chars": len(user_prompt),
-            "layer": layer,
-        },
-        trace_seq,
-    )
-
-    # Determine mock path
-    mock_path = None
-    if use_mock:
-        mock_path = str(MOCKS_DIR / "agent-responses" / f"{fixture['id']}.json")
-    trace_seq = append_trace_event(
-        run_id,
-        "agent_call_started",
-        {
-            "provider_name": provider_name,
-            "model": model,
-            "layer": layer,
-            "mock_path": mock_path,
-        },
-        trace_seq,
-    )
-
-    # Call agent (layer 3 uses tool loop)
-    response = call_agent(system_prompt, user_prompt, mock_path,
-                          provider_name=provider_name, model=model,
-                          layer=layer)
-    response.setdefault("_meta", {})
-    response["_meta"]["run_id"] = run_id
-    response["_meta"]["artifacts"] = []
-    trace_seq = append_trace_event(
-        run_id,
-        "agent_response_received",
-        {
-            "provider": response.get("_meta", {}).get("provider"),
-            "model": response.get("_meta", {}).get("model"),
-            "elapsed_seconds": response.get("_meta", {}).get("elapsed_seconds"),
-            "input_tokens": response.get("_meta", {}).get("input_tokens"),
-            "output_tokens": response.get("_meta", {}).get("output_tokens"),
-            "tool_turns": response.get("_meta", {}).get("tool_turns", 0),
-            "tool_proposals": response.get("_meta", {}).get("tool_proposals", []),
-            "parse_error": response.get("parse_error"),
-        },
-        trace_seq,
-    )
-    for proposal in response.get("_meta", {}).get("tool_proposals", []):
-        artifact = record_artifact(
-            run_id=run_id,
-            fixture=fixture,
-            artifact_type="tool",
-            proposal=proposal,
-            git_sha=git_sha,
-        )
-        response["_meta"]["artifacts"].append(artifact)
-        trace_seq = append_trace_event(
-            run_id,
-            "artifact_proposed",
-            {
-                "artifact_type": "tool",
-                "artifact_id": artifact["artifact_id"],
-                "artifact_path": artifact["artifact_path"],
-                "proposal": proposal,
-            },
-            trace_seq,
-        )
-
-    # Save mock if requested
-    if save_mock_flag and not use_mock:
-        save_mock(response, fixture["id"])
-
-    # Score
-    agent_outputs = response.get("outputs", {})
-    tolerances = fixture.get("acceptance_criteria", {}).get("tolerances", {})
-
-    output_scores = score_outputs(agent_outputs, fixture["expected_outputs"], tolerances)
-    reasoning_scores = score_reasoning(response, fixture, use_judge=use_judge,
-                                       judge_provider=judge_provider,
-                                       judge_model=judge_model)
-    proposal_scores = score_tool_proposals(response, fixture)
-    trace_seq = append_trace_event(
-        run_id,
-        "scores_computed",
-        {
-            "numeric_pct": output_scores["numeric_pct"],
-            "reasoning_pct": reasoning_scores["reasoning_score_pct"],
-            "proposal_pct": proposal_scores["proposal_score_pct"],
-            "reasoning_method": reasoning_scores.get("judge_method"),
-            "score_reliability": reasoning_scores.get("score_reliability"),
-        },
-        trace_seq,
-    )
-
-    # Assemble and save result
-    result = assemble_result(
-        fixture, response, output_scores, reasoning_scores, proposal_scores, layer=layer
-    )
-
-    result_filename = f"{fixture['id']}-L{layer}-{git_sha}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.json"
-    result_path = RESULTS_DIR / result_filename
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    with open(result_path, "w") as f:
-        json.dump(result, f, indent=2)
-    trace_seq = append_trace_event(
-        run_id,
-        "result_written",
-        {
-            "result_path": str(result_path),
-            "overall_pct": result["scores"]["overall_pct"],
-        },
-        trace_seq,
-    )
-
-    # Display
-    print_results(result)
-    print(f"\n  Result saved: {result_path}")
-    print(f"  Trace saved:  {get_trace_path(run_id)}")
-    append_archive_record(
-        "run",
-        run_id,
-        {
-            "run_id": run_id,
-            "fixture_id": fixture["id"],
-            "fixture_version": fixture.get("version", "unknown"),
-            "layer": layer,
-            "git_sha": git_sha,
-            "result_path": str(result_path),
-            "trace_path": str(get_trace_path(run_id)),
-            "overall_pct": result["scores"]["overall_pct"],
-            "provider": result.get("agent_meta", {}).get("provider"),
-            "model": result.get("agent_meta", {}).get("model"),
-        },
-    )
-    append_trace_event(
-        run_id,
-        "run_completed",
-        {
-            "result_path": str(result_path),
-            "trace_path": str(get_trace_path(run_id)),
-            "overall_pct": result["scores"]["overall_pct"],
-        },
-        trace_seq,
-    )
-
-    return result
 
 
 def log_experiment(results: list, tag: str, layer: int, provider_name: str, model: str):
@@ -1417,58 +701,15 @@ def log_experiment(results: list, tag: str, layer: int, provider_name: str, mode
     Each line is one experiment (one invocation of the harness).
     This is the 'lab notebook' — append-only, never edited.
     """
-    # Summarize per-fixture scores
-    fixture_scores = {}
-    for r in results:
-        fid = r["fixture_id"]
-        s = r["scores"]
-        fixture_scores[fid] = {
-            "numeric_pct": s["numeric"]["numeric_pct"],
-            "reasoning_pct": s["reasoning"]["reasoning_score_pct"],
-            "proposal_pct": s.get("tool_proposals", {}).get("proposal_score_pct"),
-            "overall_pct": s["overall_pct"],
-            "confidence": r["agent_response"].get("confidence"),
-        }
-
-    avg_overall = sum(fs["overall_pct"] for fs in fixture_scores.values()) / len(fixture_scores) if fixture_scores else 0
-    avg_numeric = sum(fs["numeric_pct"] for fs in fixture_scores.values()) / len(fixture_scores) if fixture_scores else 0
-    avg_reasoning = sum(fs["reasoning_pct"] for fs in fixture_scores.values()) / len(fixture_scores) if fixture_scores else 0
-    proposal_values = [fs["proposal_pct"] for fs in fixture_scores.values() if fs["proposal_pct"] is not None]
-    avg_proposal = sum(proposal_values) / len(proposal_values) if proposal_values else None
-
-    # Detect judge usage from first result
-    judge_info = {}
-    if results:
-        reasoning_meta = results[0].get("scores", {}).get("reasoning", {})
-        if reasoning_meta.get("judge_method") == "llm":
-            judge_info = {
-                "judge_method": "llm",
-                "judge_model": reasoning_meta.get("judge_model", "unknown"),
-                "judge_provider": reasoning_meta.get("judge_provider", "unknown"),
-            }
-        else:
-            judge_info = {"judge_method": "heuristic"}
-
-    entry = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "tag": tag,
-        "git_sha": get_git_sha(),
-        "layer": layer,
-        "provider": provider_name or "anthropic",
-        "model": model or results[0].get("agent_meta", {}).get("model", "unknown") if results else "unknown",
-        **judge_info,
-        "n_fixtures": len(results),
-        "avg_overall_pct": round(avg_overall, 1),
-        "avg_numeric_pct": round(avg_numeric, 1),
-        "avg_reasoning_pct": round(avg_reasoning, 1),
-        "avg_proposal_pct": round(avg_proposal, 1) if avg_proposal is not None else None,
-        "fixtures": fixture_scores,
-    }
-
-    with open(EXPERIMENT_LOG, "a") as f:
-        f.write(json.dumps(entry) + "\n")
-
-    return entry
+    return log_experiment_service(
+        paths=get_harness_paths(),
+        deps=build_eval_runner_dependencies(),
+        results=results,
+        tag=tag,
+        layer=layer,
+        provider_name=provider_name,
+        model=model,
+    )
 
 
 def compare_experiments(last_n: int = 10):
@@ -1476,61 +717,22 @@ def compare_experiments(last_n: int = 10):
     Print a comparison table of recent experiments from the JSONL log.
     This is the 'did it get better?' view.
     """
-    if not EXPERIMENT_LOG.exists():
-        print("No experiments logged yet. Run some evals first!")
-        return
+    return compare_experiments_service(
+        paths=get_harness_paths(),
+        deps=build_eval_runner_dependencies(),
+        last_n=last_n,
+    )
 
-    entries = []
-    with open(EXPERIMENT_LOG) as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                entries.append(json.loads(line))
 
-    if not entries:
-        print("No experiments logged yet.")
-        return
+def load_trace_events(run_id: str) -> list[dict]:
+    """Compatibility wrapper for trace loading."""
+    return load_trace_events_service(get_trace_path(run_id))
 
-    entries = entries[-last_n:]
 
-    # Header
-    print("\n" + "=" * 100)
-    print("  EXPERIMENT COMPARISON (last {})".format(len(entries)))
-    print("=" * 100)
-    print(f"  {'Tag':<20} {'Layer':>5} {'Model':<30} {'#Fix':>4} {'Num%':>6} {'Reas%':>6} {'Prop%':>6} {'Over%':>6}  {'Time'}")
-    print("  " + "-" * 95)
-
-    for e in entries:
-        tag = (e.get("tag") or "—")[:20]
-        model = (e.get("model") or "?")[:30]
-        ts = e["timestamp"][:16].replace("T", " ")
-        proposal_pct = e.get("avg_proposal_pct")
-        proposal_str = f"{proposal_pct:>5.1f}%" if proposal_pct is not None else "    —"
-        print(f"  {tag:<20} {e['layer']:>5} {model:<30} {e['n_fixtures']:>4} "
-              f"{e['avg_numeric_pct']:>5.1f}% {e['avg_reasoning_pct']:>5.1f}% {proposal_str} "
-              f"{e['avg_overall_pct']:>5.1f}%  {ts}")
-
-    # Show per-fixture breakdown for the latest two (for diffing)
-    if len(entries) >= 2:
-        prev, curr = entries[-2], entries[-1]
-        all_fixtures = sorted(set(list(prev.get("fixtures", {}).keys()) + list(curr.get("fixtures", {}).keys())))
-        if all_fixtures:
-            print(f"\n  DIFF: '{prev.get('tag', '?')}' → '{curr.get('tag', '?')}'")
-            print(f"  {'Fixture':<30} {'Before':>8} {'After':>8} {'Delta':>8}")
-            print("  " + "-" * 56)
-            for fid in all_fixtures:
-                before = prev.get("fixtures", {}).get(fid, {}).get("overall_pct")
-                after = curr.get("fixtures", {}).get(fid, {}).get("overall_pct")
-                b_str = f"{before:.1f}%" if before is not None else "—"
-                a_str = f"{after:.1f}%" if after is not None else "—"
-                if before is not None and after is not None:
-                    delta = after - before
-                    d_str = f"{'+' if delta >= 0 else ''}{delta:.1f}%"
-                else:
-                    d_str = "—"
-                print(f"  {fid:<30} {b_str:>8} {a_str:>8} {d_str:>8}")
-
-    print("=" * 100)
+def print_trace_summary(run_id: str, event_types: list[str] = None):
+    """Compatibility wrapper for trace summary presentation."""
+    events = load_trace_events(run_id)
+    print_trace_summary_service(run_id, events, event_types=event_types)
 
 
 def main():
@@ -1551,6 +753,12 @@ def main():
                         help="Filter list-artifacts by status")
     parser.add_argument("--artifact-type", type=str,
                         help="Filter list-artifacts by artifact type")
+    parser.add_argument("--trace-summary", action="store_true",
+                        help="Show a human-readable summary for one run trace and exit")
+    parser.add_argument("--run-id", type=str,
+                        help="Run ID for trace summary operations")
+    parser.add_argument("--trace-event-type", action="append",
+                        help="Optional event type filter for trace summary (repeatable)")
     parser.add_argument("--reviewer", type=str,
                         help="Reviewer name for artifact transition operations")
     parser.add_argument("--notes", type=str,
@@ -1614,6 +822,12 @@ def main():
         print(f"Path: {artifact['artifact_path']}")
         return
 
+    if args.trace_summary:
+        if not args.run_id:
+            parser.error("--trace-summary requires --run-id")
+        print_trace_summary(args.run_id, event_types=args.trace_event_type)
+        return
+
     # Compare mode — just print the table and exit
     if args.compare:
         compare_experiments()
@@ -1637,7 +851,7 @@ def main():
         r = run_fixture(args.fixture, **run_kwargs)
         results.append(r)
     else:
-        fixtures = sorted(FIXTURES_DIR.glob("*.json"))
+        fixtures = sorted(get_harness_paths().fixtures_dir.glob("*.json"))
         # Skip non-fixture files
         fixtures = [f for f in fixtures if f.name != "fixture-schema.json"]
 
