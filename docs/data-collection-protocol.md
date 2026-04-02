@@ -48,10 +48,10 @@ evidence exists.
 
 ### Scoring Claims
 
-| # | Report Claim | Section | Evidence Required | Status | Run / Artifact |
-|---|-------------|---------|-------------------|--------|----------------|
-| S1 | Numeric scoring compares agent output to expected values with tolerances | §5.1 | Fixture with known answer → run → score matches expected within tolerance | **Have** | Existing L1/L2 runs on 6 fixtures |
-| S2 | Reasoning scoring evaluates quality of agent reasoning | §5.1 | At least two runs on the same fixture where reasoning quality differs, and scores reflect that difference | **Need** | Compare L1 (no skills) vs L2 (with skills) on a fixture where reasoning changes |
+| # | Report Claim | Section | Evidence Required | Status | Run / Artifact                                                                                   |
+|---|-------------|---------|-------------------|--------|--------------------------------------------------------------------------------------------------|
+| S1 | Numeric scoring compares agent output to expected values with tolerances | §5.1 | Fixture with known answer → run → score matches expected within tolerance | **Have** | Existing L1/L2 runs on 11 fixtures                                                               |
+| S2 | Reasoning scoring evaluates quality of agent reasoning | §5.1 | At least two runs on the same fixture where reasoning quality differs, and scores reflect that difference | **Need** | Compare L1 (no skills) vs L2 (with skills) on a fixture where reasoning changes                  |
 | S3 | Proposal-quality scoring distinguishes required, optional, and unnecessary proposals | §5.2 | Three fixture runs: one where proposal is required, one optional, one unnecessary — scores reflect the distinction | **Need** | Use flash-distillation-01 (no proposal needed), a proposal-required fixture, and an optional one |
 
 ### Artifact Lifecycle Claims
@@ -93,13 +93,10 @@ Planned runs to close the evidence gaps above, in priority order.
 
 ### Phase 2: Run untested fixtures at Layer 1
 
-| Run | Fixture | Layer | Hypothesis | Supports Claims |
-|-----|---------|-------|-----------|----------------|
-| R03 | multistage-flash-01 | L1 | Baseline numeric scoring on a harder VLE problem | F3, S1 |
-| R04 | scibench-thermo-1.5 | L1 | Baseline on unit conversion problem | F3, S1 |
-| R05 | scibench-thermo-2.13 | L1 | Baseline on thermo property problem | F3, S1 |
-| R06 | scibench-thermo-8.13 | L1 | Baseline on advanced thermo problem | F3, S1 |
-| R07 | scibench-thermo-8.25 | L1 | Baseline on advanced thermo problem | F3, S1 |
+| Run | Fixture | Layer | Hypothesis                  | Supports Claims |
+|-----|---------|-------|-----------------------------|-----------------|
+| R03 | all     | L1    | Baseline numeric scoring    | F3, S1          |
+| R04 | all     | L2    | Baseline scoring with tools | F2, S1          |
 
 ### Phase 3: Comparative runs for scoring evidence
 

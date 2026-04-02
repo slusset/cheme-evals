@@ -38,6 +38,7 @@ from cheme_evals.adapters.cli.script_eval_runner import (
     ScriptEvalRunnerAdapterConfig,
     ScriptFixtureAdapterConfig,
     ScriptPresenterAdapterConfig,
+    ScriptPromptAdapterConfig,
     ScriptResultStoreAdapterConfig,
     ScriptRuntimeAdapterConfig,
     ScriptScoringAdapterConfig,
@@ -57,9 +58,11 @@ from cheme_evals.adapters.storage.result_store import (
     write_result,
 )
 from cheme_evals.application.fixtures import (
+    load_fixture as load_fixture_service,
+)
+from cheme_evals.application.prompts import (
     build_system_prompt as build_system_prompt_service,
     build_user_prompt as build_user_prompt_service,
-    load_fixture as load_fixture_service,
 )
 from cheme_evals.application.runtime import (
     call_agent as call_agent_service,
@@ -136,7 +139,8 @@ def build_eval_runner_dependencies() -> EvalRunnerDependencies:
                 "JUDGE_DEFAULT_MODEL", "claude-opus-4-20250514"
             ),
         ),
-        fixtures=ScriptFixtureAdapterConfig(
+        fixtures=ScriptFixtureAdapterConfig(),
+        prompts=ScriptPromptAdapterConfig(
             skills_dir=get_harness_paths().skills_dir,
         ),
         agent=ScriptAgentAdapterConfig(

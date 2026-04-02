@@ -17,10 +17,14 @@ class RuntimeInfoPort(Protocol):
 
 
 class FixturePort(Protocol):
-    """Fixture loading and prompt assembly."""
+    """Fixture loading."""
 
     def load_fixture(self, path: str) -> dict:
         """Load one fixture."""
+
+
+class PromptPort(Protocol):
+    """Prompt construction for the agent — separate from fixture loading."""
 
     def build_system_prompt(self, fixture: dict, layer: int = 1) -> str:
         """Build the system prompt."""

@@ -11,6 +11,7 @@ from cheme_evals.ports.eval_runner import (
     ArtifactPort,
     FixturePort,
     PresenterPort,
+    PromptPort,
     ResultStorePort,
     RuntimeInfoPort,
     ScoringPort,
@@ -24,6 +25,7 @@ class EvalRunnerDependencies:
 
     runtime: RuntimeInfoPort
     fixtures: FixturePort
+    prompts: PromptPort
     agent: AgentPort
     scoring: ScoringPort
     presenter: PresenterPort
@@ -80,8 +82,8 @@ def run_fixture(
         trace_seq,
     )
 
-    system_prompt = deps.fixtures.build_system_prompt(fixture, layer=layer)
-    user_prompt = deps.fixtures.build_user_prompt(fixture, layer=layer)
+    system_prompt = deps.prompts.build_system_prompt(fixture, layer=layer)
+    user_prompt = deps.prompts.build_user_prompt(fixture, layer=layer)
     trace_seq = deps.traces.append_trace_event(
         run_id,
         "prompt_built",

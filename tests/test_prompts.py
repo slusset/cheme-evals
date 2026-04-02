@@ -10,9 +10,11 @@ from pathlib import Path
 
 import pytest
 
+SRC_DIR = Path(__file__).resolve().parent.parent / "src"
+sys.path.insert(0, str(SRC_DIR))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from run_eval import build_user_prompt
+from cheme_evals.application.prompts import build_system_prompt, build_user_prompt
 
 
 class TestBuildUserPrompt:

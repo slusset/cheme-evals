@@ -20,8 +20,10 @@ This file is append-only.
 
 ## Runs
 
-| Run ID | Date       | Fixture      | Layer | Hypothesis                   | Result                                       | Classification                      | Claims Supported |
-|--------|------------|--------------|-------|------------------------------|----------------------------------------------|-------------------------------------|------------------|
-| R01    | 2026-04-01 | (test suite) | —     | Tests pass at reported count | Sandbox Python 3.10, project requires >=3.12 | Inconclusive — environment mismatch | V1               |
-| R01    | 2026-04-01 | (test suite) | —     | Tests pass from local env    | Tests pass                                   | Confirmed                           | V1               |
-| R01    | 2026-04-01 | (test suite) | —     | Tests pass from local env    | Tests pass                                   | Confirmed                           | V1               |
+| Run ID | Date       | agent llm | judge llm | Fixture      | Layer | Hypothesis                      | Result                                       | Classification                      | Claims Supported |
+|--------|------------|-----------|-----------|--------------|-------|---------------------------------|----------------------------------------------|-------------------------------------|------------------|
+| R01    | 2026-04-01 | sonnet    | opus      | (test suite) | —     | Tests pass at reported count    | Sandbox Python 3.10, project requires >=3.12 | Inconclusive — environment mismatch | V1               |
+| R01    | 2026-04-01 | sonnet    | opus      | (test suite) | —     | Tests pass from local env       | Tests pass                                   | Confirmed                           | V1               |
+| R01    | 2026-04-01 | sonnet    | opus      | (test suite) | —     | Tests pass from local env       | Tests pass                                   | Confirmed                           | V1               |
+| R03    | 2026-04-01 | sonnet    | opus      | all          | L1    | LLM judge results higher scores | Average: 95.4%                               | Confirmed                           | S1               |
+| R03    | 2026-04-01 | sonnet    | opus      | all          | L2    | tool use results higher scores  | Average: 86.0%                               | Fail                                |                  |

@@ -44,6 +44,8 @@ class FakeFixtures:
     def load_fixture(self, path: str):
         return self.fixture
 
+
+class FakePrompts:
     def build_system_prompt(self, fixture: dict, layer: int = 1):
         return f"system-layer-{layer}"
 
@@ -281,6 +283,7 @@ class TestApplicationEvalRunner:
         deps = EvalRunnerDependencies(
             runtime=FakeRuntime(),
             fixtures=FakeFixtures(fixture),
+            prompts=FakePrompts(),
             agent=FakeAgent(response),
             scoring=FakeScoring(),
             presenter=presenter,
@@ -320,6 +323,7 @@ class TestApplicationEvalRunner:
         deps = EvalRunnerDependencies(
             runtime=FakeRuntime(),
             fixtures=FakeFixtures({}),
+            prompts=FakePrompts(),
             agent=FakeAgent({}),
             scoring=FakeScoring(),
             presenter=FakePresenter(),

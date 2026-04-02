@@ -6,9 +6,11 @@ from typing import Callable
 
 from cheme_evals.application.eval_runner import EvalRunnerDependencies
 from cheme_evals.application.fixtures import (
+    load_fixture as load_fixture_service,
+)
+from cheme_evals.application.prompts import (
     build_system_prompt as build_system_prompt_service,
     build_user_prompt as build_user_prompt_service,
-    load_fixture as load_fixture_service,
 )
 from cheme_evals.application.runtime import (
     call_agent as call_agent_service,
@@ -50,19 +52,33 @@ class ScriptRuntimeAdapter:
 
 @dataclass
 class ScriptFixtureAdapterConfig:
-    """Configuration for the fixture and prompt adapter."""
+    """Configuration for the fixture loading adapter."""
 
-    skills_dir: Path
+    pass
 
 
 @dataclass
 class ScriptFixtureAdapter:
-    """Fixture and prompt adapter backed by injected functions."""
+    """Fixture loading adapter backed by injected functions."""
 
     config: ScriptFixtureAdapterConfig
 
     def load_fixture(self, path: str) -> dict:
         return load_fixture_service(path)
+
+
+@dataclass
+class ScriptPromptAdapterConfig:
+    """Configuration for the prompt construction adapter."""
+
+    skills_dir: Path
+
+
+@dataclass
+class ScriptPromptAdapter:
+    """Prompt construction adapter backed by injected functions."""
+
+    config: ScriptPromptAdapterConfig
 
     def build_system_prompt(self, fixture: dict, layer: int = 1) -> str:
         return build_system_prompt_service(
@@ -292,6 +308,7 @@ class ScriptEvalRunnerAdapterConfig:
 
     runtime: ScriptRuntimeAdapterConfig
     fixtures: ScriptFixtureAdapterConfig
+    prompts: ScriptPromptAdapterConfig
     agent: ScriptAgentAdapterConfig
     scoring: ScriptScoringAdapterConfig
     presenter: ScriptPresenterAdapterConfig
@@ -309,6 +326,7 @@ def build_script_eval_runner_dependencies(
     return EvalRunnerDependencies(
         runtime=ScriptRuntimeAdapter(config.runtime),
         fixtures=ScriptFixtureAdapter(config.fixtures),
+        prompts=ScriptPromptAdapter(config.prompts),
         agent=ScriptAgentAdapter(config.agent),
         scoring=ScriptScoringAdapter(config.scoring),
         presenter=ScriptPresenterAdapter(config.presenter),
