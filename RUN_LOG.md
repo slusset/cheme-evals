@@ -11,16 +11,17 @@ This file is append-only.
 
 <!-- Fill in once and update if it changes -->
 
-| Property | Value |
-|----------|-------|
-| Python | 3.12.12 |
-| OS | macOS 15.7.3 |
-| Default provider | Anthropic |
-| Default model | claude-sonnet-4-20250514 |
+| Property         | Value                    |
+|------------------|--------------------------|
+| Python           | 3.12.12                  |
+| OS               | macOS 15.7.3             |
+| Default provider | Anthropic                |
+| Default model    | claude-sonnet-4-20250514 |
 
 ## Runs
 
-| Run ID | Date | Fixture | Layer | Hypothesis | Result | Classification | Claims Supported |
-|--------|------|---------|-------|-----------|--------|----------------|-----------------|
-| R01 | 2026-04-01 | (test suite) | — | Tests pass at reported count | Sandbox Python 3.10, project requires >=3.12 | Inconclusive — environment mismatch | V1 |
-| R01 | 2026-04-01 | (test suite) | — | Tests pass from local env | Tests pass | Confirmed | V1 |
+| Run ID | Date       | Fixture      | Layer | Hypothesis                   | Result                                       | Classification                      | Claims Supported |
+|--------|------------|--------------|-------|------------------------------|----------------------------------------------|-------------------------------------|------------------|
+| R01    | 2026-04-01 | (test suite) | —     | Tests pass at reported count | Sandbox Python 3.10, project requires >=3.12 | Inconclusive — environment mismatch | V1               |
+| R01    | 2026-04-01 | (test suite) | —     | Tests pass from local env    | Tests pass                                   | Confirmed                           | V1               |
+| R01    | 2026-04-01 | (test suite) | —     | Tests pass from local env    | Tests pass                                   | Confirmed                           | V1               |

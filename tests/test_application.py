@@ -81,7 +81,7 @@ class FakeScoring:
             "numeric_pct": 100.0,
         }
 
-    def score_reasoning(self, response, fixture, use_judge=False, judge_provider="anthropic", judge_model=None):
+    def score_reasoning(self, response, fixture, use_judge=True, judge_provider="anthropic", judge_model=None):
         return {
             "reasoning_checkpoints": [],
             "reasoning_score_pct": 80.0,

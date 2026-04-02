@@ -1,56 +1,148 @@
 {
   "id": "scibench-thermo-1.5",
-  "version": "0.1.0",
-  "_status": "DRAFT \u2014 requires human review of inputs, tolerances, and checkpoints",
-  "tags": [
-    "scibench",
-    "thermo"
-  ],
+  "version": "1.0.0",
+  "tags": ["ideal-gas", "gas-mixture", "molar-mass", "composition", "intermediate", "scibench"],
   "source": {
     "type": "textbook",
-    "reference": "SciBench dataset, source: thermo, problem 1.5",
-    "verified_by": "scibench_dataset"
+    "reference": "SciBench dataset, source: Engel & Reid 'Thermodynamics, Statistical Thermodynamics, & Kinetics', problem 1.5. Verified by manual calculation: n = PV/RT = 97500 * 2.30e-4 / (8.314 * 296.25) = 22.425/2463.0 = 0.009103 mol; M_avg = 0.3554/0.009103 = 39.04 g/mol; x_butane = (39.04 - 30.07)/(58.12 - 30.07) = 8.97/28.05 = 0.3198 ≈ 32.0%.",
+    "verified_by": "manual_calculation"
   },
+
   "problem": {
-    "statement": "A gas sample is known to be a mixture of ethane and butane. A bulb having a 230.0 cm^3 capacity is filled with the gas to a pressure of 97.5 \u00d7 10^3 Pa at 23.1^{\u00b0} C. If the mass of the gas in the bulb is 0.3554 g, what is the mole percent of butane in the mixture?",
-    "task": "Calculate the answer and express in %.",
+    "statement": "A gas sample is known to be a mixture of ethane and butane. A bulb having a 230.0 cm^3 capacity is filled with the gas to a pressure of 97.5 × 10^3 Pa at 23.1°C. If the mass of the gas in the bulb is 0.3554 g, what is the mole percent of butane in the mixture?",
+    "task": "Calculate the mole percent of butane in the gas mixture.",
     "difficulty": "intermediate",
     "topics": [
-      "thermo"
+      "ideal gas law",
+      "gas mixture composition",
+      "average molar mass",
+      "mole fraction"
     ]
   },
+
   "inputs": {
-    "_TODO": {
-      "value": "PARSE_FROM_PROBLEM_TEXT",
-      "unit": "TODO",
-      "description": "Extract structured inputs from the problem statement above"
+    "volume": {
+      "value": 230.0,
+      "unit": "cm^3",
+      "description": "Volume of the gas bulb (= 2.300e-4 m^3)"
+    },
+    "pressure": {
+      "value": 97500,
+      "unit": "Pa",
+      "description": "Gas pressure (97.5 × 10^3 Pa)"
+    },
+    "temperature": {
+      "value": 23.1,
+      "unit": "°C",
+      "description": "Gas temperature (= 296.25 K)"
+    },
+    "mass": {
+      "value": 0.3554,
+      "unit": "g",
+      "description": "Total mass of the gas sample"
+    },
+    "molar_mass_ethane": {
+      "value": 30.07,
+      "unit": "g/mol",
+      "description": "Molar mass of ethane (C2H6)",
+      "input_class": "reference_data"
+    },
+    "molar_mass_butane": {
+      "value": 58.12,
+      "unit": "g/mol",
+      "description": "Molar mass of butane (C4H10)",
+      "input_class": "reference_data"
+    },
+    "gas_constant_R": {
+      "value": 8.314,
+      "unit": "J/(mol K)",
+      "description": "Universal gas constant",
+      "input_class": "reference_data"
     }
   },
+
   "expected_outputs": {
     "answer": {
       "value": 32.0,
       "unit": "%",
-      "description": "Expected answer from SciBench (raw unit: %)"
+      "description": "Mole percent of butane in the ethane/butane mixture"
     }
   },
+
   "acceptance_criteria": {
     "tolerances": {
       "answer": {
-        "type": "relative_percent",
-        "value": 5.0,
-        "_comment": "TODO \u2014 set appropriate tolerance based on problem type"
+        "type": "absolute",
+        "value": 1.0,
+        "_comment": "Allow ±1% for rounding in molar masses and intermediate steps"
       }
     },
-    "must_include": [],
-    "must_not_include": []
+    "must_include": [
+      "Use the ideal gas law to find total moles of gas",
+      "Calculate the average molar mass from total mass and total moles",
+      "Set up a linear equation relating average molar mass to composition"
+    ],
+    "must_not_include": [
+      "Assume the gas is pure ethane or pure butane",
+      "Use mass percent instead of mole percent"
+    ]
   },
+
   "domain_context": {
-    "recommended_tools": [],
-    "key_assumptions": [],
-    "common_mistakes": []
+    "recommended_tools": [
+      "ideal_gas_calculator",
+      "unit_conversion_calculator"
+    ],
+    "recommended_thermo_model": "Ideal gas law (PV = nRT) — appropriate at low pressure (≈1 atm) for light hydrocarbons",
+    "key_assumptions": [
+      "Ideal gas behavior at ~1 atm and 23°C",
+      "Gas mixture is homogeneous",
+      "Only ethane and butane are present (binary mixture)"
+    ],
+    "common_mistakes": [
+      "Forgetting to convert cm^3 to m^3 (factor of 1e-6)",
+      "Forgetting to convert °C to K",
+      "Confusing mole percent with mass percent",
+      "Using the wrong gas constant units (must be 8.314 J/(mol K) with Pa and m^3)",
+      "Algebraic error in the weighted average molar mass equation"
+    ]
   },
+
   "agent_evaluation": {
-    "reasoning_checkpoints": [],
+    "reasoning_checkpoints": [
+      {
+        "checkpoint": "Converts units: cm^3 → m^3, °C → K for use in PV = nRT",
+        "weight": 0.15
+      },
+      {
+        "checkpoint": "Calculates total moles using ideal gas law: n = PV/RT",
+        "weight": 0.25
+      },
+      {
+        "checkpoint": "Calculates average molar mass: M_avg = total mass / total moles",
+        "weight": 0.20
+      },
+      {
+        "checkpoint": "Sets up linear mixing rule: M_avg = x_ethane * M_ethane + x_butane * M_butane with x_ethane + x_butane = 1",
+        "weight": 0.25
+      },
+      {
+        "checkpoint": "Solves for x_butane and converts to mole percent",
+        "weight": 0.15
+      }
+    ],
     "skill_document_expected": false
+  },
+
+  "physical_constraints": {
+    "mole_fraction_bounds": {
+      "check": "0 < x_butane < 100",
+      "applies_to": ["answer"],
+      "_comment": "Mole percent must be between 0 and 100"
+    },
+    "average_molar_mass_bounds": {
+      "check": "30.07 < M_avg < 58.12",
+      "_comment": "Average molar mass must be between the two pure component values"
+    }
   }
 }

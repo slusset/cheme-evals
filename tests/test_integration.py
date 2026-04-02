@@ -30,7 +30,7 @@ class TestMockReplayIntegration:
 
         fixture_path = PROJECT_ROOT / "fixtures" / "flash-distillation-01.json"
 
-        result = run_eval.run_fixture(str(fixture_path), use_mock=True, layer=1)
+        result = run_eval.run_fixture(str(fixture_path), use_mock=True, layer=1, use_judge=False)
 
         assert result["run_id"]
         assert result["fixture_id"] == "flash-distillation-01"
@@ -265,6 +265,7 @@ class TestLayer3ProposalIntegration:
             provider_name="anthropic",
             model="fake-sonnet",
             layer=3,
+            use_judge=False,
         )
 
         output = capsys.readouterr().out
@@ -430,7 +431,7 @@ class TestTraceCli:
         monkeypatch.setattr(run_eval, "get_git_sha", lambda: "deadbee")
 
         fixture_path = PROJECT_ROOT / "fixtures" / "flash-distillation-01.json"
-        result = run_eval.run_fixture(str(fixture_path), use_mock=True, layer=1)
+        result = run_eval.run_fixture(str(fixture_path), use_mock=True, layer=1, use_judge=False)
 
         original_argv = sys.argv[:]
         try:
@@ -461,7 +462,7 @@ class TestTraceCli:
         monkeypatch.setattr(run_eval, "get_git_sha", lambda: "deadbee")
 
         fixture_path = PROJECT_ROOT / "fixtures" / "flash-distillation-01.json"
-        result = run_eval.run_fixture(str(fixture_path), use_mock=True, layer=1)
+        result = run_eval.run_fixture(str(fixture_path), use_mock=True, layer=1, use_judge=False)
 
         original_argv = sys.argv[:]
         try:

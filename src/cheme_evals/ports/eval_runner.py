@@ -57,7 +57,7 @@ class ScoringPort(Protocol):
         self,
         response: dict,
         fixture: dict,
-        use_judge: bool = False,
+        use_judge: bool = True,
         judge_provider: str = "anthropic",
         judge_model: str = None,
     ) -> dict:

@@ -1,56 +1,135 @@
 {
   "id": "scibench-thermo-8.25",
-  "version": "0.1.0",
-  "_status": "DRAFT \u2014 requires human review of inputs, tolerances, and checkpoints",
-  "tags": [
-    "scibench",
-    "thermo"
-  ],
+  "version": "1.0.0",
+  "tags": ["clausius-clapeyron", "phase-equilibrium", "boiling-point", "altitude", "intermediate", "scibench"],
   "source": {
     "type": "textbook",
-    "reference": "SciBench dataset, source: thermo, problem 8.25",
-    "verified_by": "scibench_dataset"
+    "reference": "SciBench dataset, source: Engel & Reid 'Thermodynamics, Statistical Thermodynamics, & Kinetics', problem 8.25. Verified by Clausius-Clapeyron: ln(253/760) = (40656/8.314)(1/373.12 - 1/T2); -1.1003 = 4889.3 * (1/373.12 - 1/T2); 1/T2 = 0.002680 + 0.000225 = 0.002905; T2 = 344.2 K.",
+    "verified_by": "manual_calculation"
   },
+
   "problem": {
-    "statement": "For water, \u0394 H_\\text {vaporization } is 40.656 kJ mol^-1, and the normal boiling point is 373.12 K. Calculate the boiling point for water on the top of Mt. Everest (elevation 8848 m ), where the barometric pressure is 253 Torr.",
-    "task": "Calculate the answer and express in K.",
+    "statement": "For water, ΔH_vaporization is 40.656 kJ/mol, and the normal boiling point is 373.12 K. Calculate the boiling point for water on the top of Mt. Everest (elevation 8848 m), where the barometric pressure is 253 Torr.",
+    "task": "Calculate the boiling point of water at 253 Torr and express in K.",
     "difficulty": "intermediate",
     "topics": [
-      "thermo"
+      "Clausius-Clapeyron equation",
+      "phase equilibrium",
+      "boiling point depression",
+      "altitude effects"
     ]
   },
+
   "inputs": {
-    "_TODO": {
-      "value": "PARSE_FROM_PROBLEM_TEXT",
-      "unit": "TODO",
-      "description": "Extract structured inputs from the problem statement above"
+    "enthalpy_vaporization": {
+      "value": 40.656,
+      "unit": "kJ/mol",
+      "description": "Enthalpy of vaporization of water"
+    },
+    "normal_boiling_point": {
+      "value": 373.12,
+      "unit": "K",
+      "description": "Normal boiling point of water at 760 Torr"
+    },
+    "pressure_everest": {
+      "value": 253,
+      "unit": "Torr",
+      "description": "Barometric pressure at the top of Mt. Everest (8848 m elevation)"
+    },
+    "pressure_normal": {
+      "value": 760,
+      "unit": "Torr",
+      "description": "Normal atmospheric pressure (1 atm)",
+      "input_class": "reference_data"
+    },
+    "gas_constant_R": {
+      "value": 8.314,
+      "unit": "J/(mol K)",
+      "description": "Universal gas constant",
+      "input_class": "reference_data"
     }
   },
+
   "expected_outputs": {
     "answer": {
-      "value": 344.0,
+      "value": 344,
       "unit": "K",
-      "description": "Expected answer from SciBench (raw unit: $\\mathrm{~K}$)"
+      "description": "Boiling point of water at Mt. Everest summit pressure"
     }
   },
+
   "acceptance_criteria": {
     "tolerances": {
       "answer": {
-        "type": "relative_percent",
-        "value": 5.0,
-        "_comment": "TODO \u2014 set appropriate tolerance based on problem type"
+        "type": "absolute",
+        "value": 1.0,
+        "_comment": "Clausius-Clapeyron approximation over a wide temperature range; ±1 K accounts for dH_vap variation"
       }
     },
-    "must_include": [],
-    "must_not_include": []
+    "must_include": [
+      "Apply the Clausius-Clapeyron equation to find the boiling point at reduced pressure",
+      "Use the normal boiling point and 760 Torr as the reference state",
+      "Recognize that lower pressure leads to a lower boiling point"
+    ],
+    "must_not_include": [
+      "Assume boiling point is linearly proportional to pressure",
+      "Use the ideal gas law directly to compute a boiling temperature"
+    ]
   },
+
   "domain_context": {
-    "recommended_tools": [],
-    "key_assumptions": [],
-    "common_mistakes": []
+    "recommended_tools": [
+      "clausius_clapeyron_calculator"
+    ],
+    "recommended_thermo_model": "Clausius-Clapeyron equation: ln(P2/P1) = (ΔH_vap/R)(1/T1 - 1/T2)",
+    "key_assumptions": [
+      "ΔH_vap is approximately constant over the temperature range 344-373 K",
+      "Vapor phase behaves as an ideal gas",
+      "Molar volume of liquid is negligible compared to vapor"
+    ],
+    "common_mistakes": [
+      "Getting the sign wrong — boiling point should decrease at lower pressure",
+      "Mixing up which temperature/pressure is T1/P1 vs T2/P2",
+      "Using ΔH_vap in kJ but R in J without converting",
+      "Forgetting that 760 Torr = 1 atm is the reference pressure for normal boiling point"
+    ]
   },
+
   "agent_evaluation": {
-    "reasoning_checkpoints": [],
+    "reasoning_checkpoints": [
+      {
+        "checkpoint": "Identifies this as a Clausius-Clapeyron problem: boiling point at non-standard pressure",
+        "weight": 0.20
+      },
+      {
+        "checkpoint": "Sets up the equation with correct reference state: T1 = 373.12 K, P1 = 760 Torr",
+        "weight": 0.15
+      },
+      {
+        "checkpoint": "Correctly rearranges to solve for T2: 1/T2 = 1/T1 - (R/ΔH_vap) ln(P2/P1)",
+        "weight": 0.30
+      },
+      {
+        "checkpoint": "Ensures unit consistency between ΔH_vap and R",
+        "weight": 0.15
+      },
+      {
+        "checkpoint": "Confirms result makes physical sense: lower pressure gives lower boiling point",
+        "weight": 0.20
+      }
+    ],
     "skill_document_expected": false
+  },
+
+  "physical_constraints": {
+    "boiling_point_depression": {
+      "check": "T_bp_everest < 373.12",
+      "applies_to": ["answer"],
+      "_comment": "Lower pressure must give lower boiling point"
+    },
+    "boiling_point_above_freezing": {
+      "check": "T_bp_everest > 273.15",
+      "_comment": "Water should still be liquid at this reduced boiling point"
+    }
   }
 }

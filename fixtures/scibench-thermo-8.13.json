@@ -1,56 +1,138 @@
 {
   "id": "scibench-thermo-8.13",
-  "version": "0.1.0",
-  "_status": "DRAFT \u2014 requires human review of inputs, tolerances, and checkpoints",
-  "tags": [
-    "scibench",
-    "thermo"
-  ],
+  "version": "1.0.0",
+  "tags": ["clausius-clapeyron", "phase-equilibrium", "vapor-pressure", "boiling-point", "intermediate", "scibench"],
   "source": {
     "type": "textbook",
-    "reference": "SciBench dataset, source: thermo, problem 8.13",
-    "verified_by": "scibench_dataset"
+    "reference": "SciBench dataset, source: Engel & Reid 'Thermodynamics, Statistical Thermodynamics, & Kinetics', problem 8.13. Verified by Clausius-Clapeyron: ln(P2/1) = (40656/8.314)(1/373.15 - 1/393.15) = 4889.3 * 1.365e-4 = 0.6674; P2 = e^0.6674 = 1.95 atm.",
+    "verified_by": "manual_calculation"
   },
+
   "problem": {
-    "statement": "Autoclaves that are used to sterilize surgical tools require a temperature of 120 .^{\u00b0} C to kill some bacteria. If water is used for this purpose, at what pressure must the autoclave operate?",
-    "task": "Calculate the answer and express in atm.",
+    "statement": "Autoclaves that are used to sterilize surgical tools require a temperature of 120.°C to kill some bacteria. If water is used for this purpose, at what pressure must the autoclave operate?",
+    "task": "Calculate the required autoclave pressure in atm.",
     "difficulty": "intermediate",
     "topics": [
-      "thermo"
+      "Clausius-Clapeyron equation",
+      "phase equilibrium",
+      "vapor pressure",
+      "boiling point elevation"
     ]
   },
+
   "inputs": {
-    "_TODO": {
-      "value": "PARSE_FROM_PROBLEM_TEXT",
-      "unit": "TODO",
-      "description": "Extract structured inputs from the problem statement above"
+    "target_temperature": {
+      "value": 120,
+      "unit": "°C",
+      "description": "Required sterilization temperature (393.15 K)"
+    },
+    "normal_boiling_point": {
+      "value": 100,
+      "unit": "°C",
+      "description": "Normal boiling point of water (373.15 K)",
+      "input_class": "reference_data"
+    },
+    "normal_boiling_pressure": {
+      "value": 1.0,
+      "unit": "atm",
+      "description": "Atmospheric pressure at the normal boiling point",
+      "input_class": "reference_data"
+    },
+    "enthalpy_vaporization": {
+      "value": 40.656,
+      "unit": "kJ/mol",
+      "description": "Enthalpy of vaporization of water",
+      "input_class": "reference_data"
+    },
+    "gas_constant_R": {
+      "value": 8.314,
+      "unit": "J/(mol K)",
+      "description": "Universal gas constant",
+      "input_class": "reference_data"
     }
   },
+
   "expected_outputs": {
     "answer": {
       "value": 1.95,
       "unit": "atm",
-      "description": "Expected answer from SciBench (raw unit: $\\mathrm{~atm}$)"
+      "description": "Required autoclave operating pressure"
     }
   },
+
   "acceptance_criteria": {
     "tolerances": {
       "answer": {
-        "type": "relative_percent",
-        "value": 5.0,
-        "_comment": "TODO \u2014 set appropriate tolerance based on problem type"
+        "type": "absolute",
+        "value": 0.05,
+        "_comment": "Clausius-Clapeyron is approximate; allow ±0.05 atm for rounding and dH_vap variation"
       }
     },
-    "must_include": [],
-    "must_not_include": []
+    "must_include": [
+      "Apply the Clausius-Clapeyron equation to relate pressure and temperature",
+      "Use the normal boiling point as the reference state",
+      "Convert temperatures to Kelvin for the calculation"
+    ],
+    "must_not_include": [
+      "Use the ideal gas law directly to find pressure",
+      "Assume pressure is linearly proportional to temperature"
+    ]
   },
+
   "domain_context": {
-    "recommended_tools": [],
-    "key_assumptions": [],
-    "common_mistakes": []
+    "recommended_tools": [
+      "clausius_clapeyron_calculator",
+      "steam_tables"
+    ],
+    "recommended_thermo_model": "Clausius-Clapeyron equation: ln(P2/P1) = (ΔH_vap/R)(1/T1 - 1/T2)",
+    "key_assumptions": [
+      "ΔH_vap is approximately constant over the temperature range 100-120°C",
+      "Vapor phase behaves as an ideal gas",
+      "Molar volume of liquid is negligible compared to vapor"
+    ],
+    "common_mistakes": [
+      "Forgetting to convert °C to K before applying Clausius-Clapeyron",
+      "Getting the sign wrong in the exponent (1/T1 - 1/T2 vs 1/T2 - 1/T1)",
+      "Using ΔH_vap in kJ but R in J without converting",
+      "Using Antoine equation when Clausius-Clapeyron is sufficient for this temperature range"
+    ]
   },
+
   "agent_evaluation": {
-    "reasoning_checkpoints": [],
+    "reasoning_checkpoints": [
+      {
+        "checkpoint": "Identifies this as a Clausius-Clapeyron problem: find pressure at elevated boiling point",
+        "weight": 0.20
+      },
+      {
+        "checkpoint": "Converts temperatures to Kelvin: 100°C = 373.15 K, 120°C = 393.15 K",
+        "weight": 0.15
+      },
+      {
+        "checkpoint": "Correctly applies ln(P2/P1) = (ΔH_vap/R)(1/T1 - 1/T2)",
+        "weight": 0.30
+      },
+      {
+        "checkpoint": "Ensures unit consistency between ΔH_vap (kJ/mol) and R (J/mol/K)",
+        "weight": 0.15
+      },
+      {
+        "checkpoint": "States assumptions: ΔH_vap constant, ideal vapor, negligible liquid volume",
+        "weight": 0.20
+      }
+    ],
     "skill_document_expected": false
+  },
+
+  "physical_constraints": {
+    "pressure_above_atmospheric": {
+      "check": "P_autoclave > 1.0",
+      "applies_to": ["answer"],
+      "_comment": "Boiling point above 100°C requires pressure above 1 atm"
+    },
+    "pressure_reasonable": {
+      "check": "P_autoclave < 5.0",
+      "_comment": "120°C is only 20 K above normal BP, pressure should be modest"
+    }
   }
 }

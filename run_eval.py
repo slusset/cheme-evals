@@ -626,7 +626,7 @@ def score_reasoning_llm_judge(response: dict, fixture: dict,
     }
 
 
-def score_reasoning(response: dict, fixture: dict, use_judge: bool = False,
+def score_reasoning(response: dict, fixture: dict, use_judge: bool = True,
                     judge_provider: str = "anthropic", judge_model: str = None) -> dict:
     """Compatibility wrapper for reasoning scoring."""
     return score_reasoning_service(
@@ -677,7 +677,7 @@ def print_results(result: dict):
 
 def run_fixture(fixture_path: str, use_mock: bool = False, save_mock_flag: bool = False,
                 provider_name: str = None, model: str = None, layer: int = 1,
-                use_judge: bool = False, judge_provider: str = "anthropic",
+                use_judge: bool = True, judge_provider: str = "anthropic",
                 judge_model: str = None):
     """Run a single fixture evaluation."""
     return run_fixture_service(
@@ -783,8 +783,8 @@ def main():
                         help="Include draft fixtures (version < 1.0.0). Default: curated only")
 
     # LLM judge options
-    parser.add_argument("--judge", action="store_true",
-                        help="Use LLM-as-judge for reasoning scoring (semantic, not keyword)")
+    parser.add_argument("--skip-judge", action="store_true",
+                        help="Skip LLM-as-judge and use keyword heuristic only for reasoning scoring")
     parser.add_argument("--judge-provider", type=str, default="anthropic",
                         help=f"Provider for the judge model ({available_providers}). Default: anthropic")
     parser.add_argument("--judge-model", type=str, default=None,
@@ -841,7 +841,7 @@ def main():
         provider_name=args.provider,
         model=args.model,
         layer=args.layer,
-        use_judge=args.judge,
+        use_judge=not args.skip_judge,
         judge_provider=args.judge_provider,
         judge_model=args.judge_model,
     )

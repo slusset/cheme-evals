@@ -43,7 +43,7 @@ def run_fixture(
     provider_name: str = None,
     model: str = None,
     layer: int = 1,
-    use_judge: bool = False,
+    use_judge: bool = True,
     judge_provider: str = "anthropic",
     judge_model: str = None,
 ) -> dict:

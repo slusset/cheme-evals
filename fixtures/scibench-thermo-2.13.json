@@ -1,56 +1,144 @@
 {
   "id": "scibench-thermo-2.13",
-  "version": "0.1.0",
-  "_status": "DRAFT \u2014 requires human review of inputs, tolerances, and checkpoints",
-  "tags": [
-    "scibench",
-    "thermo"
-  ],
+  "version": "1.0.0",
+  "tags": ["first-law", "electrical-heating", "calorimetry", "constant-pressure", "intermediate", "scibench"],
   "source": {
     "type": "textbook",
-    "reference": "SciBench dataset, source: thermo, problem 2.13",
-    "verified_by": "scibench_dataset"
+    "reference": "SciBench dataset, source: Engel & Reid 'Thermodynamics, Statistical Thermodynamics, & Kinetics', problem 2.13. Verified by manual calculation: q = I^2 R t = (1.75)^2 * 25.0 * 100 = 7656.25 J; dT = q / (m * Cp) = 7656.25 / (82.5 * 4.18) = 22.2 K; T_final = 300 + 22.2 = 322.2 K.",
+    "verified_by": "manual_calculation"
   },
+
   "problem": {
-    "statement": "A system consisting of 82.5 g of liquid water at 300 . K is heated using an immersion heater at a constant pressure of 1.00 bar. If a current of 1.75 A passes through the 25.0 ohm resistor for 100 .s, what is the final temperature of the water?",
-    "task": "Calculate the answer and express in K.",
+    "statement": "A system consisting of 82.5 g of liquid water at 300. K is heated using an immersion heater at a constant pressure of 1.00 bar. If a current of 1.75 A passes through the 25.0 ohm resistor for 100. s, what is the final temperature of the water?",
+    "task": "Calculate the final temperature of the water in K.",
     "difficulty": "intermediate",
     "topics": [
-      "thermo"
+      "first law of thermodynamics",
+      "electrical work",
+      "calorimetry",
+      "constant pressure heating"
     ]
   },
+
   "inputs": {
-    "_TODO": {
-      "value": "PARSE_FROM_PROBLEM_TEXT",
-      "unit": "TODO",
-      "description": "Extract structured inputs from the problem statement above"
+    "mass_water": {
+      "value": 82.5,
+      "unit": "g",
+      "description": "Mass of liquid water in the system"
+    },
+    "initial_temperature": {
+      "value": 300,
+      "unit": "K",
+      "description": "Initial temperature of the water"
+    },
+    "pressure": {
+      "value": 1.00,
+      "unit": "bar",
+      "description": "Constant pressure of the system"
+    },
+    "current": {
+      "value": 1.75,
+      "unit": "A",
+      "description": "Electrical current through the heater"
+    },
+    "resistance": {
+      "value": 25.0,
+      "unit": "ohm",
+      "description": "Resistance of the immersion heater"
+    },
+    "time": {
+      "value": 100,
+      "unit": "s",
+      "description": "Duration of heating"
+    },
+    "specific_heat_water": {
+      "value": 4.18,
+      "unit": "J/(g K)",
+      "description": "Specific heat capacity of liquid water at constant pressure",
+      "input_class": "reference_data"
     }
   },
+
   "expected_outputs": {
     "answer": {
-      "value": 322.0,
+      "value": 322,
       "unit": "K",
-      "description": "Expected answer from SciBench (raw unit: $\\mathrm{~K}$)"
+      "description": "Final temperature of the water after electrical heating"
     }
   },
+
   "acceptance_criteria": {
     "tolerances": {
       "answer": {
-        "type": "relative_percent",
-        "value": 5.0,
-        "_comment": "TODO \u2014 set appropriate tolerance based on problem type"
+        "type": "absolute",
+        "value": 1.0,
+        "_comment": "Allow ±1 K for rounding in Cp value (4.18 vs 4.184) and intermediate steps"
       }
     },
-    "must_include": [],
-    "must_not_include": []
+    "must_include": [
+      "Calculate electrical energy input using q = I^2 R t or q = V I t",
+      "Apply first law at constant pressure to relate heat to temperature change",
+      "Use the specific heat capacity of water"
+    ],
+    "must_not_include": [
+      "Assume the system is adiabatic with respect to the heater",
+      "Use Cv instead of Cp for a constant pressure process"
+    ]
   },
+
   "domain_context": {
-    "recommended_tools": [],
-    "key_assumptions": [],
-    "common_mistakes": []
+    "recommended_tools": [
+      "manual_first_law_calculation"
+    ],
+    "recommended_thermo_model": "First law of thermodynamics at constant pressure (q_p = m Cp dT)",
+    "key_assumptions": [
+      "All electrical energy is transferred to the water as heat (no losses)",
+      "Constant pressure process at 1.00 bar",
+      "Cp of water is approximately constant over the temperature range 300-322 K",
+      "Water remains liquid throughout the heating process"
+    ],
+    "common_mistakes": [
+      "Using the wrong formula for electrical power (P = I^2 R, not P = IR)",
+      "Forgetting to multiply power by time to get total energy",
+      "Confusing Cp and Cv for a constant-pressure process",
+      "Unit errors when converting between J and kJ"
+    ]
   },
+
   "agent_evaluation": {
-    "reasoning_checkpoints": [],
+    "reasoning_checkpoints": [
+      {
+        "checkpoint": "Calculates electrical energy: q = I^2 * R * t = (1.75)^2 * 25.0 * 100 = 7656 J",
+        "weight": 0.30
+      },
+      {
+        "checkpoint": "Applies the constant-pressure first law: q = m * Cp * dT",
+        "weight": 0.25
+      },
+      {
+        "checkpoint": "Solves for temperature change: dT = q / (m * Cp) ≈ 22 K",
+        "weight": 0.25
+      },
+      {
+        "checkpoint": "Adds dT to initial temperature to get T_final",
+        "weight": 0.10
+      },
+      {
+        "checkpoint": "States that all electrical energy is assumed to transfer as heat to the water",
+        "weight": 0.10
+      }
+    ],
     "skill_document_expected": false
+  },
+
+  "physical_constraints": {
+    "temperature_increase": {
+      "check": "T_final > T_initial",
+      "applies_to": ["answer"]
+    },
+    "water_remains_liquid": {
+      "check": "T_final < 373.15",
+      "_comment": "Final temperature must be below boiling point at 1 bar"
+    }
   }
 }

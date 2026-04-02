@@ -200,7 +200,7 @@ def score_reasoning(
     response: dict,
     fixture: dict,
     *,
-    use_judge: bool = False,
+    use_judge: bool = True,
     judge_provider: str = "anthropic",
     judge_model: str = None,
     llm_judge_fn: Callable[..., dict] = None,
